@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using Unity.Mathematics;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -66,6 +65,65 @@ public static class BigWorldBaker
         for (var i = 0; i < objectGroups.Count; ++i)
         {
             AssetDatabase.CreateAsset(objectGroups[i], $"{scenePath}/{i}.asset");
+        }
+        AssetDatabase.Refresh();
+        Debug.LogError("Bake Success");
+    }
+
+    [MenuItem("BigWorld/BakeGrassForBRG")]
+    private static void BakeGrassForBRG()
+    {
+        var sceneRoot = GameObject.Find("Scene/Grasses");
+        if (sceneRoot == null)
+        {
+            Debug.LogError("Bake Failed");
+            return;
+        }
+
+        var objectGroups = new List<BigWorldObjectGroupForBRG>();
+        
+        var meshRenderers = sceneRoot.GetComponentsInChildren<MeshRenderer>();
+        foreach (var meshRenderer in meshRenderers)
+        {
+            if (meshRenderer.sharedMaterial != null && meshRenderer.gameObject.TryGetComponent<MeshFilter>(out var meshFilter) && meshFilter.sharedMesh != null)
+            {
+                var material = meshRenderer.sharedMaterial;
+                var mesh = meshFilter.sharedMesh;
+                
+                var transform = meshRenderer.transform;
+                var group = objectGroups.Find((g) => g.material == material && g.mesh == mesh);
+                if (group == null)
+                {
+                    group = ScriptableObject.CreateInstance<BigWorldObjectGroupForBRG>();
+                    group.material = material;
+                    group.mesh = mesh;
+                    group.count = 1;
+                    group.positions = new List<Vector3> { transform.position };
+                    group.rotations = new List<Quaternion> { transform.rotation };
+                    group.scales = new List<Vector3> { transform.lossyScale };
+                    objectGroups.Add(group);
+                }
+                else
+                {
+                    ++group.count;
+                    group.positions.Add(transform.position);
+                    group.rotations.Add(transform.rotation);
+                    group.scales.Add(transform.lossyScale);
+                }
+            }
+        }
+
+        var scene = SceneManager.GetActiveScene();
+        var scenePath = scene.path.Replace($"{scene.name}.unity", string.Empty) + "/ObjectGroups";
+        if (Directory.Exists(scenePath))
+        {
+            Directory.Delete(scenePath, true);
+        }
+
+        Directory.CreateDirectory(scenePath);
+        for (var i = 0; i < objectGroups.Count; ++i)
+        {
+            AssetDatabase.CreateAsset(objectGroups[i], $"{scenePath}/grass_{i}.asset");
         }
         AssetDatabase.Refresh();
         Debug.LogError("Bake Success");
