@@ -3,76 +3,15 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Unity.Mathematics;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
 public static class BigWorldBaker
 {
-    //[MenuItem("BigWorld/BakeSceneForECS")]
-    //private static void BakeForEntity()
-    //{
-    //    var sceneRoot = GameObject.Find("Scene");
-    //    if (sceneRoot == null)
-    //    {
-    //        Debug.LogError("Bake Failed");
-    //        return;
-    //    }
-
-    //    var objectGroups = new List<BigWorldObjectGroup>();
-        
-    //    var meshRenderers = sceneRoot.GetComponentsInChildren<MeshRenderer>();
-    //    foreach (var meshRenderer in meshRenderers)
-    //    {
-    //        if (meshRenderer.sharedMaterial != null && meshRenderer.gameObject.TryGetComponent<MeshFilter>(out var meshFilter) && meshFilter.sharedMesh != null)
-    //        {
-    //            var material = meshRenderer.sharedMaterial;
-    //            var mesh = meshFilter.sharedMesh;
-                
-    //            var transform = meshRenderer.transform;
-    //            var position = transform.position;
-    //            var rotation = transform.rotation;
-    //            var scale = transform.lossyScale;
-                
-    //            var group = objectGroups.Find((g) => g.material == material && g.mesh == mesh);
-    //            if (group == null)
-    //            {
-    //                group = ScriptableObject.CreateInstance<BigWorldObjectGroup>();
-    //                group.material = material;
-    //                group.mesh = mesh;
-    //                group.count = 1;
-    //                group.positions = new List<float3> { new float3(position.x, position.y, position.z) };
-    //                group.rotations = new List<quaternion> { new quaternion(rotation.x, rotation.y, rotation.z, rotation.w) };
-    //                group.scales = new List<float3> { new float3(scale.x, scale.y, scale.z) };
-    //                objectGroups.Add(group);
-    //            }
-    //            else
-    //            {
-    //                ++group.count;
-    //                group.positions.Add(new float3(position.x, position.y, position.z));
-    //                group.rotations.Add(new quaternion(rotation.x, rotation.y, rotation.z, rotation.w));
-    //                group.scales.Add(new float3(scale.x, scale.y, scale.z));
-    //            }
-    //        }
-    //    }
-
-    //    var scene = SceneManager.GetActiveScene();
-    //    var scenePath = scene.path.Replace($"{scene.name}.unity", string.Empty) + "/ObjectGroups";
-    //    if (Directory.Exists(scenePath))
-    //    {
-    //        Directory.Delete(scenePath, true);
-    //    }
-
-    //    Directory.CreateDirectory(scenePath);
-    //    for (var i = 0; i < objectGroups.Count; ++i)
-    //    {
-    //        AssetDatabase.CreateAsset(objectGroups[i], $"{scenePath}/{i}.asset");
-    //    }
-    //    AssetDatabase.Refresh();
-    //    Debug.LogError("Bake Success");
-    //}
-
-    [MenuItem("BigWorld/BakeForBRG")]
+    #region Old
+    //[MenuItem("BigWorld/BakeForBRG")]
     private static void BakeForBRG()
     {
         var sceneRoot = GameObject.Find("Scene");
@@ -228,7 +167,7 @@ public static class BigWorldBaker
         }
     }
 
-    [MenuItem("BigWorld/PlaceObject")]
+    //[MenuItem("BigWorld/PlaceObject")]
     private static void PlaceTrees()
     {
         var gameObject = Selection.activeGameObject;
@@ -257,7 +196,7 @@ public static class BigWorldBaker
         }
     }
 
-    [MenuItem("BigWorld/PlaceToNavmesh")]
+    //[MenuItem("BigWorld/PlaceToNavmesh")]
     private static void PlaceToNevmesh()
     {
         var root = GameObject.Find("Scene");
@@ -270,5 +209,152 @@ public static class BigWorldBaker
                 child.position = hit.position;
             }
         }
+    }
+    #endregion
+
+    class BakeBatchItemInfo
+    {
+        public MeshRenderer renderer;
+    }
+    
+    class BakeBatchLodInfo
+    {
+        public Mesh mesh;
+        public Material material;
+        public readonly List<BakeBatchItemInfo> items = new List<BakeBatchItemInfo>();
+    }
+    
+    class BakeBatchInfo
+    {
+        public string batchName;
+        public readonly List<BakeBatchLodInfo> lods = new List<BakeBatchLodInfo>();
+    }
+    
+    /// <summary>
+    /// 大世界烘焙
+    /// </summary>
+    [MenuItem("BigWorld/Bake")]
+    private static void Bake()
+    {
+        var sceneRoot = GameObject.Find("Scene");
+        if (sceneRoot == null)
+        {
+            return;
+        }
+        
+        //首先划分批次
+        var batchInfos = new Dictionary<string, BakeBatchInfo>();
+        var lodGroups = sceneRoot.GetComponentsInChildren<LODGroup>();
+        foreach (var lodGroup in lodGroups)
+        {
+            if (lodGroup.lodCount == 0)
+            {
+                continue;
+            }
+            var lods = lodGroup.GetLODs();
+            var renderCount = lods[0].renderers.Length;
+            for (var i = 0; i < renderCount; ++i)
+            {
+                var prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(lodGroup.gameObject);
+                var batchName = $"{Path.GetFileNameWithoutExtension(prefabPath)}_{i}";
+                if (!batchInfos.TryGetValue(batchName, out var batchInfo))
+                {
+                    batchInfo = new BakeBatchInfo { batchName = batchName };
+                    batchInfos.Add(batchName, batchInfo);
+                }
+                
+                if (batchInfo.lods.Count == 0)
+                {
+                    for (var j = 0; j < lodGroup.lodCount; ++j)
+                    {
+                        var renderer = lods[j].renderers[i];
+                        batchInfo.lods.Add(new BakeBatchLodInfo
+                        {
+                            mesh = renderer.GetComponent<MeshFilter>().sharedMesh,
+                            material = renderer.sharedMaterial,
+                        });
+                    }
+                }
+                
+                for (var j = 0; j < lodGroup.lodCount; ++j)
+                {
+                    batchInfo.lods[j].items.Add(new BakeBatchItemInfo
+                    {
+                        renderer = lods[j].renderers[i] as MeshRenderer
+                    });
+                }
+            }
+        }
+        
+        //清理Lightmap和Lightmap烘焙参数
+        ClearLightmap();
+        ClearLightmapParams();
+        
+        //设置Lightmap烘焙参数
+        var bakeTag = 0;
+        foreach (var pair in batchInfos)
+        {
+            var lightmapParam = new LightmapParameters()
+            {
+                bakedLightmapTag = 100 + bakeTag++,
+                limitLightmapCount = true,
+                maxLightmapCount = 1,
+            };
+
+            var lod0 = pair.Value.lods[0];
+            foreach (var item in lod0.items)
+            {
+                var renderer = item.renderer;
+                renderer.scaleInLightmap = 1.0f;
+                renderer.stitchLightmapSeams = false;
+
+                var so = new SerializedObject(renderer);
+                var sp = so.FindProperty("m_LightmapParameters");
+                sp.objectReferenceValue = lightmapParam;
+                so.ApplyModifiedProperties();
+                
+                GameObjectUtility.SetStaticEditorFlags(renderer.gameObject, StaticEditorFlags.ContributeGI);
+            }
+        }
+        
+        //烘焙
+        BakeLightmap(1024, 15);
+        
+        //烘焙完成
+        AssetDatabase.Refresh();
+        Debug.LogError("烘焙完成");
+    }
+
+    /// <summary>
+    /// 清理Lightmap
+    /// </summary>
+    private static void ClearLightmap()
+    {
+        Lightmapping.Clear();
+    }
+
+    private static void ClearLightmapParams()
+    {
+        for (var i = 0; i < SceneManager.sceneCount; ++i)
+        {
+            var scene = SceneManager.GetSceneAt(i);
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var children = root.GetComponentsInChildren<Transform>();
+                foreach (var child in children)
+                {
+                    GameObjectUtility.SetStaticEditorFlags(child.gameObject, 0);
+                }
+            }
+        }
+    }
+
+    private static void BakeLightmap(int atlasSize, float bakeResolution)
+    {
+        Lightmapping.lightingSettings.lightmapMaxSize = atlasSize;
+        Lightmapping.lightingSettings.lightmapResolution = bakeResolution;
+        Lightmapping.lightingSettings.directionalityMode = LightmapsMode.NonDirectional;
+        Lightmapping.lightingSettings.lightmapCompression = LightmapCompression.None;
+        Lightmapping.Bake();
     }
 }
