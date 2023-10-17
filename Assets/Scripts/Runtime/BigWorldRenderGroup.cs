@@ -1,12 +1,13 @@
 using System;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
-using Unity.Entities.UniversalDelegates;
 using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.XR;
 
+[BurstCompile]
 public class BigWorldRenderGroup : MonoBehaviour
 {
     #region PackedMatrix
@@ -28,7 +29,8 @@ public class BigWorldRenderGroup : MonoBehaviour
     #endregion
 
     #region BatchInfo
-    public class BatchInfo
+    [BurstCompile]
+    public class BatchLodInfo
     {
         public GraphicsBuffer instanceData;
         public int instanceCount;
@@ -36,13 +38,13 @@ public class BigWorldRenderGroup : MonoBehaviour
         public BatchMeshID meshID;
         public BatchMaterialID materialID;
 
-        public BatchInfo(BatchRendererGroup brg, BigWorldObjectGroupForBRG group)
+        public BatchLodInfo(BatchRendererGroup brg, BigWorldObjectGroupForBRG group, int lodLevel)
         {
             var totalSize = c_sizeOfPerInstance * group.count + c_sizeOfBufferHead;
             instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, totalSize / sizeof(int), sizeof(int));
             instanceCount = group.count;
-            meshID = brg.RegisterMesh(group.mesh);
-            materialID = brg.RegisterMaterial(group.material);
+            meshID = brg.RegisterMesh(group.lods[lodLevel].mesh);
+            materialID = brg.RegisterMaterial(group.lods[lodLevel].material);
 
             //组织数据
             var localToWorld = new PackedMatrix[group.count];
@@ -66,6 +68,64 @@ public class BigWorldRenderGroup : MonoBehaviour
 
             //add batch
             batchID = brg.AddBatch(metadata, instanceData.bufferHandle);
+        }
+    }
+
+    [BurstCompile]
+    public class BatchInfo
+    {
+        public BatchLodInfo[] lods;
+
+        public NativeArray<float3> positions;
+        public NativeArray<quaternion> rotations;
+        public NativeArray<float3> scales;
+        public NativeArray<AABB> bounds;
+
+        public BatchInfo(BatchRendererGroup brg, BigWorldObjectGroupForBRG group)
+        {
+            lods = new BatchLodInfo[group.lods.Length];
+            for (var i = 0; i < group.lods.Length; ++i)
+            {
+                lods[i] = new BatchLodInfo(brg, group, i);
+            }
+
+            positions = new NativeArray<float3>(group.count, Allocator.Persistent);
+            rotations = new NativeArray<quaternion>(group.count, Allocator.Persistent);
+            scales = new NativeArray<float3>(group.count, Allocator.Persistent);
+            bounds = new NativeArray<AABB>(group.count, Allocator.Persistent);
+            for (var i = 0; i < group.count; ++i)
+            {
+                positions[i] = group.positions[i];
+                rotations[i] = group.rotations[i];
+                scales[i] = group.scales[i];
+                bounds[i] = group.bounds[i];
+            }
+        }
+
+        public void Destroy()
+        {
+            positions.Dispose();
+            rotations.Dispose();
+            scales.Dispose();
+            bounds.Dispose();
+        }
+    }
+    #endregion
+
+    #region CullJob
+    [BurstCompile]
+    public struct CullJob : IJobParallelFor
+    {
+        [ReadOnly] NativeArray<float4> cullingPlanes;
+        [ReadOnly] NativeArray<float3> positions;
+        [ReadOnly] NativeArray<AABB> bounds;
+        [WriteOnly] NativeArray<int> rotations;
+
+
+        [BurstCompile]
+        public void Execute(int index)
+        {
+            
         }
     }
     #endregion
@@ -105,6 +165,8 @@ public class BigWorldRenderGroup : MonoBehaviour
     
     private void Start()
     {
+        Application.targetFrameRate = 60;
+
         if (objectGroups == null || objectGroups.Length == 0 || player == null)
         {
             return;
@@ -127,15 +189,25 @@ public class BigWorldRenderGroup : MonoBehaviour
         {
             m_renderGroup.Dispose();
         }
+
+        foreach (var batchInfo in m_batchInfos)
+        {
+            batchInfo.Destroy();
+        }
     }
 
+    [BurstCompile]
     private unsafe JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext cullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
     {
-        var batchCount = m_batchInfos.Length;
+        var batchCount = 0;
         var instanceCount = 0;
         foreach (var batchInfo in m_batchInfos)
         {
-            instanceCount += batchInfo.instanceCount;
+            foreach (var lod in batchInfo.lods)
+            {
+                ++batchCount;
+                instanceCount += lod.instanceCount;
+            }
         }
 
         //DrawCommand
@@ -152,34 +224,60 @@ public class BigWorldRenderGroup : MonoBehaviour
         //初始化draw command
         var playerPosition = player.position;
         var cullDistanceSq = cullDistance * cullDistance;
-        uint visibleOffset = 0;
-        for (var i = 0; i < m_batchInfos.Length; ++i)
+        var cullingPlanes = new NativeArray<float4>(cullingContext.cullingPlanes.Length, Allocator.TempJob);
+        for (var i = 0; i < cullingPlanes.Length; ++i)
         {
-            //可见裁剪
-            uint visibleCount = 0;
-            var group = objectGroups[i];
-            for (var j = 0; j < group.count; ++j)
+            var plane = cullingContext.cullingPlanes[i];
+            cullingPlanes[i] = new float4(plane.normal.x, plane.normal.y, plane.normal.z, plane.distance);
+        }
+
+        uint commandOffset = 0;
+        uint visibleOffset = 0;
+        for (var batchInfoIndex = 0; batchInfoIndex < m_batchInfos.Length; ++batchInfoIndex)
+        {
+            var batchInfo = m_batchInfos[batchInfoIndex];
+            var group = objectGroups[batchInfoIndex];
+
+            for (var lodLevel = 0; lodLevel < batchInfo.lods.Length; ++lodLevel)
             {
-                if (Vector3.SqrMagnitude(playerPosition - group.positions[j]) <= cullDistanceSq)
+                var groupLodInfo = group.lods[lodLevel];
+                var batchLodInfo = batchInfo.lods[lodLevel];
+
+                //可见和LOD裁剪
+                uint visibleCount = 0;
+                for (var j = 0; j < group.count; ++j)
                 {
-                    drawCommands->visibleInstances[visibleOffset + visibleCount] = j;
-                    ++visibleCount;
+                    //检测可见性
+                    var intersectResult = Unity.Rendering.FrustumPlanes.Intersect(cullingPlanes, group.bounds[j]);
+                    if (intersectResult != Unity.Rendering.FrustumPlanes.IntersectResult.Out)
+                    {
+                        var distanceSq = Vector3.SqrMagnitude(playerPosition - group.positions[j]);
+                        if (distanceSq <= cullDistanceSq)
+                        {
+                            //检测LOD
+                            if (distanceSq >= groupLodInfo.lodMinDistanceSq && (distanceSq < groupLodInfo.lodMaxDistanceSq || groupLodInfo.lodMaxDistance < 0))
+                            {
+                                drawCommands->visibleInstances[visibleOffset + visibleCount] = j;
+                                ++visibleCount;
+                            }
+                        }
+                    }
                 }
+
+                var drawCommand = drawCommands->drawCommands + commandOffset;
+                drawCommand->visibleCount = visibleCount;
+                drawCommand->visibleOffset = visibleOffset;
+                drawCommand->batchID = batchLodInfo.batchID;
+                drawCommand->materialID = batchLodInfo.materialID;
+                drawCommand->meshID = batchLodInfo.meshID;
+                drawCommand->submeshIndex = 0;
+                drawCommand->splitVisibilityMask = 0xff;
+                drawCommand->flags = 0;
+                drawCommand->sortingPosition = 0;
+
+                ++commandOffset;
+                visibleOffset += visibleCount;
             }
-
-            var batchInfo = m_batchInfos[i];
-            var drawCommand = drawCommands->drawCommands + i;
-            drawCommand->visibleCount = visibleCount;
-            drawCommand->visibleOffset = visibleOffset;
-            drawCommand->batchID = batchInfo.batchID;
-            drawCommand->materialID = batchInfo.materialID;
-            drawCommand->meshID = batchInfo.meshID;
-            drawCommand->submeshIndex = 0;
-            drawCommand->splitVisibilityMask = 0xff;
-            drawCommand->flags = 0;
-            drawCommand->sortingPosition = 0;
-
-            visibleOffset += visibleCount;
         }
 
         //DrawRange
