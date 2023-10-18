@@ -1,9 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 using Unity.Mathematics;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
@@ -21,7 +19,7 @@ public static class BigWorldBaker
             return;
         }
 
-        var objectGroups = new List<BigWorldObjectGroupForBRG>();
+        var objectGroups = new List<BigWorldBatchGroupConfig>();
 
         var treeRoot = sceneRoot.transform.Find("tree");
         if (treeRoot != null)
@@ -57,7 +55,7 @@ public static class BigWorldBaker
         Debug.LogError("Bake Success");
     }
 
-    private static void BakeLod(Transform root, List<BigWorldObjectGroupForBRG> objectGroups)
+    private static void BakeLod(Transform root, List<BigWorldBatchGroupConfig> objectGroups)
     {
         var lodGroups = root.GetComponentsInChildren<LODGroup>();
         foreach (var lodGroup in lodGroups)
@@ -84,18 +82,18 @@ public static class BigWorldBaker
                 {
                     var renderer0 =(MeshRenderer)lod0.renderers[i];
                     var renderer1 =(MeshRenderer)lod1.renderers[i];
-                    group = ScriptableObject.CreateInstance<BigWorldObjectGroupForBRG>();
+                    group = ScriptableObject.CreateInstance<BigWorldBatchGroupConfig>();
                     group.name = objGroupName;
-                    group.lods = new BigWorldObjectGroupForBRG.Lod[]
+                    group.lods = new BigWorldBatchGroupConfig.Lod[]
                     {
-                        new BigWorldObjectGroupForBRG.Lod
+                        new BigWorldBatchGroupConfig.Lod
                         {
                             mesh = renderer0.GetComponent<MeshFilter>().sharedMesh,
                             material = renderer0.sharedMaterial,
                             lodMinDistance = 0,
                             lodMaxDistance = 15.0f,
                         },
-                        new BigWorldObjectGroupForBRG.Lod
+                        new BigWorldBatchGroupConfig.Lod
                         {
                             mesh = renderer1.GetComponent<MeshFilter>().sharedMesh,
                             material = renderer1.sharedMaterial,
@@ -125,7 +123,7 @@ public static class BigWorldBaker
         }
     }
 
-    private static void BakeNonLod(Transform root, List<BigWorldObjectGroupForBRG> objectGroups)
+    private static void BakeNonLod(Transform root, List<BigWorldBatchGroupConfig> objectGroups)
     {
         var meshRenderers = root.GetComponentsInChildren<MeshRenderer>();
         foreach (var renderer in meshRenderers)
@@ -136,11 +134,11 @@ public static class BigWorldBaker
             var group = objectGroups.Find((g) => g.name == objGroupName);
             if (group == null)
             {
-                group = ScriptableObject.CreateInstance<BigWorldObjectGroupForBRG>();
+                group = ScriptableObject.CreateInstance<BigWorldBatchGroupConfig>();
                 group.name = objGroupName;
-                group.lods = new BigWorldObjectGroupForBRG.Lod[]
+                group.lods = new BigWorldBatchGroupConfig.Lod[]
                 {
-                    new BigWorldObjectGroupForBRG.Lod
+                    new BigWorldBatchGroupConfig.Lod
                     {
                         mesh = mesh,
                         material = material,
@@ -212,24 +210,36 @@ public static class BigWorldBaker
     }
     #endregion
 
+    enum LightmapQuality
+    {
+        High,
+        Med,
+        Low
+    }
+
     class BakeBatchItemInfo
     {
         public MeshRenderer renderer;
+        public Vector4 hqLightmapScaleOffset;
+        public Vector4 mqLightmapScaleOffset;
+        public Vector4 lqLightmapScaleOffset;
     }
     
     class BakeBatchLodInfo
     {
         public Mesh mesh;
         public Material material;
-        public readonly List<BakeBatchItemInfo> items = new List<BakeBatchItemInfo>();
     }
     
     class BakeBatchInfo
     {
         public string batchName;
         public readonly List<BakeBatchLodInfo> lods = new List<BakeBatchLodInfo>();
+        public readonly List<BakeBatchItemInfo> items = new List<BakeBatchItemInfo>();
     }
-    
+
+    private const int lightmapSize = 1024;
+
     /// <summary>
     /// 大世界烘焙
     /// </summary>
@@ -262,7 +272,12 @@ public static class BigWorldBaker
                     batchInfo = new BakeBatchInfo { batchName = batchName };
                     batchInfos.Add(batchName, batchInfo);
                 }
-                
+
+                batchInfo.items.Add(new BakeBatchItemInfo
+                {
+                    renderer = lods[0].renderers[i] as MeshRenderer
+                });
+
                 if (batchInfo.lods.Count == 0)
                 {
                     for (var j = 0; j < lodGroup.lodCount; ++j)
@@ -275,22 +290,11 @@ public static class BigWorldBaker
                         });
                     }
                 }
-                
-                for (var j = 0; j < lodGroup.lodCount; ++j)
-                {
-                    batchInfo.lods[j].items.Add(new BakeBatchItemInfo
-                    {
-                        renderer = lods[j].renderers[i] as MeshRenderer
-                    });
-                }
             }
         }
-        
-        //清理Lightmap和Lightmap烘焙参数
-        ClearLightmap();
-        ClearLightmapParams();
-        
+
         //设置Lightmap烘焙参数
+        ClearLightmapParams();
         var bakeTag = 0;
         foreach (var pair in batchInfos)
         {
@@ -301,8 +305,7 @@ public static class BigWorldBaker
                 maxLightmapCount = 1,
             };
 
-            var lod0 = pair.Value.lods[0];
-            foreach (var item in lod0.items)
+            foreach (var item in pair.Value.items)
             {
                 var renderer = item.renderer;
                 renderer.scaleInLightmap = 1.0f;
@@ -316,10 +319,25 @@ public static class BigWorldBaker
                 GameObjectUtility.SetStaticEditorFlags(renderer.gameObject, StaticEditorFlags.ContributeGI);
             }
         }
-        
-        //烘焙
-        BakeLightmap(1024, 15);
-        
+
+        //烘焙低精度
+        ClearLightmap();
+        BakeLightmap(lightmapSize, 6);
+        PostprocessLightmap(batchInfos, LightmapQuality.Low);
+
+        //烘焙中精度
+        ClearLightmap();
+        BakeLightmap(lightmapSize, 9);
+        PostprocessLightmap(batchInfos, LightmapQuality.Med);
+
+        //烘焙高精度
+        ClearLightmap();
+        BakeLightmap(lightmapSize, 15);
+        PostprocessLightmap(batchInfos, LightmapQuality.High);
+
+        //创建数据
+        CreateObjectGroup(batchInfos);
+
         //烘焙完成
         AssetDatabase.Refresh();
         Debug.LogError("烘焙完成");
@@ -356,5 +374,89 @@ public static class BigWorldBaker
         Lightmapping.lightingSettings.directionalityMode = LightmapsMode.NonDirectional;
         Lightmapping.lightingSettings.lightmapCompression = LightmapCompression.None;
         Lightmapping.Bake();
+    }
+
+    private static void PostprocessLightmap(Dictionary<string, BakeBatchInfo> batchInfos, LightmapQuality quality)
+    {
+        var scene = SceneManager.GetActiveScene();
+        foreach (var pair in batchInfos)
+        {
+            var firstRenderer = pair.Value.items[0].renderer;
+            var lightmapIndex = firstRenderer.lightmapIndex;
+            var lightmapTexture = LightmapSettings.lightmaps[lightmapIndex].lightmapColor;
+            var lightmapPath = AssetDatabase.GetAssetPath(lightmapTexture);
+            AssetDatabase.CopyAsset(lightmapPath, $"Assets/Resources/Lightmaps/{scene.name}/{quality}/{pair.Key}.exr");
+
+            foreach (var item in pair.Value.items)
+            {
+                if (quality == LightmapQuality.High)
+                {
+                    item.hqLightmapScaleOffset = item.renderer.lightmapScaleOffset;
+                }
+                else if (quality == LightmapQuality.Med)
+                {
+                    item.mqLightmapScaleOffset = item.renderer.lightmapScaleOffset;
+                }
+                else
+                {
+                    item.lqLightmapScaleOffset = item.renderer.lightmapScaleOffset;
+                }
+            }
+        }
+        AssetDatabase.Refresh();
+    }
+
+    private static void CreateObjectGroup(Dictionary<string, BakeBatchInfo> batchInfos)
+    {
+        var scene = SceneManager.GetActiveScene();
+        var scenePath = scene.path.Replace($"{scene.name}.unity", string.Empty) + "/ObjectGroups";
+        if (Directory.Exists(scenePath))
+        {
+            Directory.Delete(scenePath, true);
+        }
+        Directory.CreateDirectory(scenePath);
+
+        foreach (var pair in  batchInfos)
+        {
+            var batchInfo = pair.Value;
+            var group = ScriptableObject.CreateInstance<BigWorldBatchGroupConfig>();
+            group.name = batchInfo.batchName;
+            group.lods = new BigWorldBatchGroupConfig.Lod[batchInfo.lods.Count];
+            for (var i = 0; i < batchInfo.lods.Count; ++i)
+            {
+                group.lods[i] = new BigWorldBatchGroupConfig.Lod
+                {
+                    mesh = batchInfo.lods[i].mesh,
+                    material = batchInfo.lods[i].material,
+                    lodMinDistance = 15.0f * i,
+                    lodMaxDistance = 15.0f * i + 15.0f,
+                };
+            }
+            group.lods[group.lods.Length - 1].lodMaxDistance = -1.0f;
+
+            group.count = batchInfo.items.Count;
+            group.positions = new List<Vector3>();
+            group.rotations = new List<Quaternion>();
+            group.scales = new List<Vector3>();
+            group.bounds = new List<AABB>();
+            group.hqLightmapScaleOffsets = new List<Vector4>();
+            group.mqLightmapScaleOffsets = new List<Vector4>();
+            group.lqLightmapScaleOffsets = new List<Vector4>();
+            for (var i = 0; i < batchInfo.items.Count; ++i)
+            {
+                var item = batchInfo.items[i];
+                group.positions.Add(item.renderer.transform.position);
+                group.rotations.Add(item.renderer.transform.rotation);
+                group.scales.Add(item.renderer.transform.lossyScale);
+                group.bounds.Add(item.renderer.bounds.ToAABB());
+                group.hqLightmapScaleOffsets.Add(item.hqLightmapScaleOffset);
+                group.mqLightmapScaleOffsets.Add(item.mqLightmapScaleOffset);
+                group.lqLightmapScaleOffsets.Add(item.lqLightmapScaleOffset);
+            }
+
+            AssetDatabase.CreateAsset(group, $"{scenePath}/{group.name}.asset");
+        }
+
+        AssetDatabase.Refresh();
     }
 }
