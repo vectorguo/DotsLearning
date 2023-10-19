@@ -13,9 +13,6 @@ public class BigWorldBatchGroupConfig : ScriptableObject
         public Material material;
         public float lodMinDistance;
         public float lodMaxDistance;
-
-        public float lodMinDistanceSq => lodMinDistance * lodMinDistance;
-        public float lodMaxDistanceSq => lodMaxDistance * lodMaxDistance;
     }
 
     /// <summary>

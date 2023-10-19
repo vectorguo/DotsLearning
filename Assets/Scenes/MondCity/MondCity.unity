@@ -97,8 +97,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: 4b3229d5f7a1bda40ae5b2a7e992956f,
-    type: 2}
+  m_LightingDataAsset: {fileID: 0}
   m_LightingSettings: {fileID: 4890085278179872738, guid: 87448656e36fe4789a764beb14c3e432,
     type: 2}
 --- !u!196 &4
@@ -541,7 +540,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1c53df911ddfa944ac85c54a93610f8, type: 2}
   - {fileID: 11400000, guid: e98d33ea6b386c8498cb179c7d16106a, type: 2}
   player: {fileID: 1615828781}
-  cullDistance: 1000
+  cullDistance: 60
 --- !u!4 &1362661238
 Transform:
   m_ObjectHideFlags: 0

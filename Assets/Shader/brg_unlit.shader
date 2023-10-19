@@ -75,9 +75,11 @@ Shader "brg/brg_unlit"
         #if defined(UNITY_DOTS_INSTANCING_ENABLED)
             UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
                 UNITY_DOTS_INSTANCED_PROP(float4, _LightmapST)
+                // UNITY_DOTS_INSTANCED_PROP(float , _LightmapIndex)
             UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
 
-            #define _LightmapST UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _LightmapST)
+            #define _LightmapST     UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _LightmapST)
+            // #define _LightmapIndex  UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float , _LightmapIndex)
         #endif
 
             v2f vert (a2v v)
