@@ -540,7 +540,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1c53df911ddfa944ac85c54a93610f8, type: 2}
   - {fileID: 11400000, guid: e98d33ea6b386c8498cb179c7d16106a, type: 2}
   player: {fileID: 1615828781}
-  cullDistance: 60
+  cullDistance: 100
+  useJobForCulling: 0
 --- !u!4 &1362661238
 Transform:
   m_ObjectHideFlags: 0
