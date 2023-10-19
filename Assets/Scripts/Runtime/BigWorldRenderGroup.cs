@@ -13,9 +13,10 @@ public class BigWorldRenderGroup : MonoBehaviour
     #region 常量数据
     private const uint c_sizeOfMatrix = sizeof(float) * 4 * 4;
     private const uint c_sizeOfPackedMatrix = sizeof(float) * 4 * 3;
+    private const uint c_sizeOfFloat = sizeof(float);
     private const uint c_sizeOfFloat4 = sizeof(float) * 4;
     private const uint c_sizeOfGBufferHead = c_sizeOfPackedMatrix * 2;
-    private const uint c_sizeOfPerInstance = (c_sizeOfPackedMatrix + c_sizeOfFloat4 + sizeof(int) - 1) / sizeof(int) * sizeof(int);  //确保是sizeof(int)的整数倍
+    private const uint c_sizeOfPerInstance = (c_sizeOfPackedMatrix + c_sizeOfFloat4 + c_sizeOfFloat + sizeof(int) - 1) / sizeof(int) * sizeof(int);  //确保是sizeof(int)的整数倍
     #endregion
 
     #region PackedMatrix
@@ -49,42 +50,52 @@ public class BigWorldRenderGroup : MonoBehaviour
         /// <summary>
         /// 用于存储每个Instance的Lightmap数据
         /// </summary>
-        private NativeArray<float> m_systemBufferLightmapST;
-        private NativeArray<float> m_systemBufferLightmapIndex;
+        public NativeArray<float4> systemBufferLightmapST;
+        public NativeArray<float> systemBufferLightmapIndex;
 
 
-        public BigWorldBatch(int instanceOffset, int instanceCount, int lodLevel, BigWorldBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
+        public BigWorldBatch(int instanceOffset, int instanceCount, BigWorldBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
         {
             this.instanceCount = instanceCount;
             this.instanceOffset = instanceOffset;
 
+            systemBufferLightmapST = new NativeArray<float4>(instanceCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            systemBufferLightmapIndex = new NativeArray<float>(instanceCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+
             //填充数据
-            var lightmapScaleOffsets = lodLevel == 0 ? batchGroupConfig.hqLightmapScaleOffsets : (lodLevel == 1 ? batchGroupConfig.mqLightmapScaleOffsets : batchGroupConfig.lqLightmapScaleOffsets);
             var localToWorld = new PackedMatrix[instanceCount];
-            var lightmapScalOffset = new float4[instanceCount];
             for (var i = 0; i < instanceCount; ++i)
             {
                 var index = instanceOffset + i;
                 localToWorld[i] = new PackedMatrix(Matrix4x4.TRS(batchGroupConfig.positions[index], batchGroupConfig.rotations[index], batchGroupConfig.scales[index]));
-                lightmapScalOffset[i] = new float4(lightmapScaleOffsets[index]);
             }
 
             //创建GBuffer
             uint byteAddressLocalToWorld = c_sizeOfGBufferHead;
             uint byteAddressLightmapScalOffset = byteAddressLocalToWorld + (uint)(c_sizeOfPackedMatrix * instanceCount);
+            uint byteAddressLightmapIndex = byteAddressLightmapScalOffset + (uint)(c_sizeOfFloat4 * instanceCount);
             var buffSize = instanceCount * c_sizeOfPerInstance + c_sizeOfGBufferHead;
             instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
             instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
             instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / c_sizeOfPackedMatrix), localToWorld.Length);
-            instanceData.SetData(lightmapScalOffset, 0, (int)(byteAddressLightmapScalOffset / c_sizeOfFloat4), lightmapScalOffset.Length);
 
             //metadata
-            var metadata = new NativeArray<MetadataValue>(2, Allocator.Temp);
+            var metadata = new NativeArray<MetadataValue>(3, Allocator.Temp);
             metadata[0] = new MetadataValue { NameID = Shader.PropertyToID("unity_ObjectToWorld"), Value = 0x80000000 | byteAddressLocalToWorld };
             metadata[1] = new MetadataValue { NameID = Shader.PropertyToID("_LightmapST"), Value = 0x80000000 | byteAddressLightmapScalOffset };
+            metadata[2] = new MetadataValue { NameID = Shader.PropertyToID("_LightmapIndex"), Value = 0x80000000 | byteAddressLightmapIndex };
 
             //add batch
             batchID = brg.AddBatch(metadata, instanceData.bufferHandle);
+        }
+
+        public void Destroy(BatchRendererGroup brg)
+        {
+            brg.RemoveBatch(batchID);
+
+            instanceData.Dispose();
+            systemBufferLightmapST.Dispose();
+            systemBufferLightmapIndex.Dispose();
         }
     }
 
@@ -107,7 +118,6 @@ public class BigWorldRenderGroup : MonoBehaviour
 
             //创建材质
             var material = new Material(lodConfig.material);
-            material.SetFloat("_LightmapIndex", lodLevel);
             material.SetTexture("_Lightmaps", lightmaps);
             material.EnableKeyword("LIGHTMAP_ON");
 
@@ -123,8 +133,18 @@ public class BigWorldRenderGroup : MonoBehaviour
             {
                 var instanceOffset = i * maxInstanceCountPerBatch;
                 var instanceCount = Math.Min(maxInstanceCountPerBatch, group.count - instanceOffset);
-                batches[i] = new BigWorldBatch(instanceOffset, instanceCount, lodLevel, group, brg);
+                batches[i] = new BigWorldBatch(instanceOffset, instanceCount, group, brg);
             }
+        }
+
+        public void Destroy(BatchRendererGroup brg)
+        {
+            foreach (var batch in batches)
+            {
+                batch.Destroy(brg);
+            }
+            brg.UnregisterMesh(meshID);
+            brg.UnregisterMaterial(materialID);
         }
     }
 
@@ -167,10 +187,16 @@ public class BigWorldRenderGroup : MonoBehaviour
             }
         }
 
-        public void Destroy()
+        public void Destroy(BatchRendererGroup brg)
         {
+            foreach (var lod in lods)
+            {
+                lod.Destroy(brg);
+            }
             positions.Dispose();
             bounds.Dispose();
+
+            UnityEngine.Object.Destroy(m_lightmaps);
         }
     }
     #endregion
@@ -270,12 +296,24 @@ public class BigWorldRenderGroup : MonoBehaviour
     /// <summary>
     /// maxGraphicsBufferSize
     /// </summary>
-    public static long maxGraphicsBufferSize = 16 * 1024;
+    public static long maxGraphicsBufferSize = 32 * 1024;
 
     /// <summary>
     /// 每个Batch的最大Instance数量
     /// </summary>
     public static int maxInstanceCountPerBatch = 0;
+
+    /// <summary>
+    /// 高精度Lightmap的显示距离
+    /// </summary>
+    public static float hqLightmapDistance = 10;
+    public static float hqLightmapDistanceSq => hqLightmapDistance * hqLightmapDistance;
+
+    /// <summary>
+    /// 中精度Lightmap的显示距离
+    /// </summary>
+    public static float mqLightmapDistance = 20;
+    public static float mqLightmapDistanceSq => mqLightmapDistance * mqLightmapDistance;
 
     /// <summary>
     /// 草数据
@@ -319,6 +357,7 @@ public class BigWorldRenderGroup : MonoBehaviour
         //初始化参数
         maxGraphicsBufferSize = Math.Min(maxGraphicsBufferSize, SystemInfo.maxGraphicsBufferSize);
         maxInstanceCountPerBatch = (int)((maxGraphicsBufferSize - c_sizeOfGBufferHead) / c_sizeOfPerInstance);
+        Debug.LogError("maxInstanceCountPerBatch = " + maxInstanceCountPerBatch);
 
         //创建BRG
         m_brg = new BatchRendererGroup(OnPerformCulling, IntPtr.Zero);
@@ -329,23 +368,30 @@ public class BigWorldRenderGroup : MonoBehaviour
         {
             m_batchGroups[i] = new BigWorldBatchGroup(m_brg, batchGroupConfigs[i]);
         }
+        UpdateLightmap();
+    }
+
+    private void Update()
+    {
+        //更新Lightmap
+        UpdateLightmap();
     }
 
     private void OnDisable()
     {
-        if (m_brg != null)
-        {
-            m_brg.Dispose();
-        }
-
         foreach (var batchInfo in m_batchGroups)
         {
-            batchInfo.Destroy();
+            batchInfo.Destroy(m_brg);
         }
 
         foreach (var config in batchGroupConfigs)
         {
             config.Destroy();
+        }
+
+        if (m_brg != null)
+        {
+            m_brg.Dispose();
         }
     }
 
@@ -356,6 +402,51 @@ public class BigWorldRenderGroup : MonoBehaviour
     public void AddBatchGroup(BigWorldBatchGroupConfig batchGroupConfig)
     {
 
+    }
+
+    private void UpdateLightmap()
+    {
+        var playerPosition = player.position;
+        for (int batchInfoIndex = 0; batchInfoIndex < m_batchGroups.Length; ++batchInfoIndex)
+        {
+            var batchGroup = m_batchGroups[batchInfoIndex];
+            var batchGroupConfig = batchGroupConfigs[batchInfoIndex];
+            for (var lodLevel = 0; lodLevel < batchGroup.lods.Length; ++lodLevel)
+            {
+                var batchLodInfo = batchGroup.lods[lodLevel];
+                foreach (var batch in batchLodInfo.batches)
+                {
+                    for (var j = 0; j < batch.instanceCount; ++j)
+                    {
+                        var instanceIndex = batch.instanceOffset + j;
+                        var distanceSq = Vector3.SqrMagnitude(playerPosition - batchGroupConfig.positions[instanceIndex]);
+                        if (distanceSq <= hqLightmapDistanceSq)
+                        {
+                            //高精度Lightmap
+                            batch.systemBufferLightmapST[j] = batchGroupConfig.hqLightmapScaleOffsets[instanceIndex];
+                            batch.systemBufferLightmapIndex[j] = 0;
+                        }
+                        else if (distanceSq <= mqLightmapDistanceSq)
+                        {
+                            //中精度Lightmap
+                            batch.systemBufferLightmapST[j] = batchGroupConfig.mqLightmapScaleOffsets[instanceIndex];
+                            batch.systemBufferLightmapIndex[j] = 1;
+                        }
+                        else
+                        {
+                            //低精度Lightmap
+                            batch.systemBufferLightmapST[j] = batchGroupConfig.lqLightmapScaleOffsets[instanceIndex];
+                            batch.systemBufferLightmapIndex[j] = 2;
+                        }
+                    }
+
+                    uint byteAddressLightmapScalOffset = c_sizeOfGBufferHead + (uint)(c_sizeOfPackedMatrix * batch.instanceCount);
+                    uint byteAddressLightmapIndex = byteAddressLightmapScalOffset + (uint)(c_sizeOfFloat4 * batch.instanceCount);
+                    batch.instanceData.SetData(batch.systemBufferLightmapST, 0, (int)(byteAddressLightmapScalOffset / c_sizeOfFloat4), batch.instanceCount);
+                    batch.instanceData.SetData(batch.systemBufferLightmapIndex, 0, (int)(byteAddressLightmapIndex / c_sizeOfFloat), batch.instanceCount);
+                }
+            }
+        }
     }
 
     [BurstCompile]
@@ -414,8 +505,6 @@ public class BigWorldRenderGroup : MonoBehaviour
             for (var batchInfoIndex = 0; batchInfoIndex < m_batchGroups.Length; ++batchInfoIndex)
             {
                 var batchGroup = m_batchGroups[batchInfoIndex];
-                var batchGroupConfig = batchGroupConfigs[batchInfoIndex];
-
                 for (var lodLevel = 0; lodLevel < batchGroup.lods.Length; ++lodLevel)
                 {
                     var batchLodInfo = batchGroup.lods[lodLevel];
@@ -456,11 +545,10 @@ public class BigWorldRenderGroup : MonoBehaviour
         else
         {
             var playerPosition = player.position;
-            for (int batchInfoIndex = 0, batchIndex = 0; batchInfoIndex < m_batchGroups.Length; ++batchInfoIndex)
+            for (int batchInfoIndex = 0; batchInfoIndex < m_batchGroups.Length; ++batchInfoIndex)
             {
                 var batchGroup = m_batchGroups[batchInfoIndex];
                 var batchGroupConfig = batchGroupConfigs[batchInfoIndex];
-
                 for (var lodLevel = 0; lodLevel < batchGroup.lods.Length; ++lodLevel)
                 {
                     var batchLodInfo = batchGroup.lods[lodLevel];
@@ -472,11 +560,11 @@ public class BigWorldRenderGroup : MonoBehaviour
                         for (var j = 0; j < batch.instanceCount; ++j)
                         {
                             //检测可见性
-                            var configIndex = batch.instanceOffset + j;
-                            var intersectResult = Unity.Rendering.FrustumPlanes.Intersect(cullingPlanes, batchGroupConfig.bounds[configIndex]);
+                            var instanceIndex = batch.instanceOffset + j;
+                            var intersectResult = Unity.Rendering.FrustumPlanes.Intersect(cullingPlanes, batchGroupConfig.bounds[instanceIndex]);
                             if (intersectResult != Unity.Rendering.FrustumPlanes.IntersectResult.Out)
                             {
-                                var distanceSq = Vector3.SqrMagnitude(playerPosition - batchGroupConfig.positions[configIndex]);
+                                var distanceSq = Vector3.SqrMagnitude(playerPosition - batchGroupConfig.positions[instanceIndex]);
                                 if (distanceSq <= cullDistanceSq)
                                 {
                                     //检测LOD
@@ -489,7 +577,7 @@ public class BigWorldRenderGroup : MonoBehaviour
                             }
                         }
 
-                        var drawCommand = drawCommands->drawCommands + batchIndex++;
+                        var drawCommand = drawCommands->drawCommands + batch.batchIndex;
                         drawCommand->visibleCount = (uint)visibleCount;
                         drawCommand->visibleOffset = (uint)visibleOffset;
                         drawCommand->batchID = batch.batchID;

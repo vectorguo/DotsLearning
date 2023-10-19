@@ -428,8 +428,8 @@ public static class BigWorldBaker
                 {
                     mesh = batchInfo.lods[i].mesh,
                     material = batchInfo.lods[i].material,
-                    lodMinDistance = 15.0f * i,
-                    lodMaxDistance = 15.0f * i + 15.0f,
+                    lodMinDistance = 50.0f * i,
+                    lodMaxDistance = 50.0f * i + 50.0f,
                 };
             }
             group.lods[group.lods.Length - 1].lodMaxDistance = -1.0f;
