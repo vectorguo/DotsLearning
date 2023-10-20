@@ -191,7 +191,7 @@ namespace BigCatEditor.BigWorld
             /// <summary>
             /// 是否带有LOD
             /// </summary>
-            public bool hasLod => lods.Count == 1;
+            public bool hasLod => lods.Count > 1;
 
             /// <summary>
             /// 构造函数
