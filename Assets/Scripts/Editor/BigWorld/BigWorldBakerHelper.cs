@@ -272,9 +272,14 @@ namespace BigCatEditor.BigWorld
         public class BigWorldBakeGroupItem
         {
             public readonly MeshRenderer renderer;
-            
+
+            public int hqLightmapIndex;
             public Vector4 hqLightmapScaleOffset;
+
+            public int mqLightmapIndex;
             public Vector4 mqLightmapScaleOffset;
+
+            public int lqLightmapIndex;
             public Vector4 lqLightmapScaleOffset;
 
             public BigWorldBakeGroupItem(MeshRenderer r)

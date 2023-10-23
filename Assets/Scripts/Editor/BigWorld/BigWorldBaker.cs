@@ -10,9 +10,24 @@ namespace BigCatEditor.BigWorld
 {
     public static class BigWorldBaker
     {
+        /// <summary>
+        /// 大世界名称
+        /// </summary>
+        private static string s_worldName = "MondCity";
+        public static string worldName => s_worldName;
+
         [MenuItem("BigWorld/Bake")]
         public static void Bake()
         {
+            //删除旧资源
+            var path = $"Assets/Resources/BigWorld/{s_worldName}";
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, true);
+            }
+            Directory.CreateDirectory(path);
+            AssetDatabase.Refresh();
+
             //生成烘焙数据
             var scene = SceneManager.GetActiveScene();
             foreach (var go in scene.GetRootGameObjects())
@@ -29,13 +44,71 @@ namespace BigCatEditor.BigWorld
             
             //烘焙Lightmap
             BigWorldLightmapBaker.BakeLightmap(bakeGroupsMap);
-            
+
+            //创建BatchGroup配置
+            CreateBatchGroupConfigs(bakeGroupsMap);
+
             //烘焙完成
             AssetDatabase.Refresh();
             Debug.LogError("烘焙完成");
         }
-        
-        
+
+        #region BatchGroupConfig
+        private static void CreateBatchGroupConfigs(Dictionary<int, List<BigWorldBakerHelper.BigWorldBakeGroup>> bakeGroupsMap)
+        {
+            foreach (var pair in bakeGroupsMap)
+            {
+                BigWorldBakerHelper.GetCellCoordinate(pair.Key, out var cellX, out var cellZ);
+
+                for (var index = 0; index < pair.Value.Count; ++index)
+                {
+                    var bakeGroup = pair.Value[index];
+                    var batchGroupConfig = ScriptableObject.CreateInstance<BigWorldBatchGroupConfig>();
+                    batchGroupConfig.lods = new BigWorldBatchGroupConfig.Lod[bakeGroup.lods.Count];
+                    for (var i = 0; i < bakeGroup.lods.Count; ++i)
+                    {
+                        batchGroupConfig.lods[i] = new BigWorldBatchGroupConfig.Lod
+                        {
+                            mesh = bakeGroup.lods[i].mesh,
+                            material = bakeGroup.lods[i].material,
+                            lodMinDistance = 30.0f * i,
+                            lodMaxDistance = 30.0f * i + 30.0f,
+                        };
+                    }
+                    batchGroupConfig.lods[bakeGroup.lods.Count - 1].lodMaxDistance = -1.0f;
+
+                    batchGroupConfig.count = bakeGroup.items.Count;
+                    batchGroupConfig.positions = new List<Vector3>();
+                    batchGroupConfig.rotations = new List<Quaternion>();
+                    batchGroupConfig.scales = new List<Vector3>();
+                    batchGroupConfig.bounds = new List<AABB>();
+                    batchGroupConfig.hqLightmapIndices = new List<int>();
+                    batchGroupConfig.mqLightmapIndices = new List<int>();
+                    batchGroupConfig.lqLightmapIndices = new List<int>();
+                    batchGroupConfig.hqLightmapScaleOffsets = new List<Vector4>();
+                    batchGroupConfig.mqLightmapScaleOffsets = new List<Vector4>();
+                    batchGroupConfig.lqLightmapScaleOffsets = new List<Vector4>();
+                    for (var i = 0; i < bakeGroup.items.Count; ++i)
+                    {
+                        var item = bakeGroup.items[i];
+                        batchGroupConfig.positions.Add(item.renderer.transform.position);
+                        batchGroupConfig.rotations.Add(item.renderer.transform.rotation);
+                        batchGroupConfig.scales.Add(item.renderer.transform.lossyScale);
+                        batchGroupConfig.bounds.Add(item.renderer.bounds.ToAABB());
+                        batchGroupConfig.hqLightmapIndices.Add(item.hqLightmapIndex);
+                        batchGroupConfig.mqLightmapIndices.Add(item.mqLightmapIndex);
+                        batchGroupConfig.lqLightmapIndices.Add(item.lqLightmapIndex);
+                        batchGroupConfig.hqLightmapScaleOffsets.Add(item.hqLightmapScaleOffset);
+                        batchGroupConfig.mqLightmapScaleOffsets.Add(item.mqLightmapScaleOffset);
+                        batchGroupConfig.lqLightmapScaleOffsets.Add(item.lqLightmapScaleOffset);
+                    }
+
+                    AssetDatabase.CreateAsset(batchGroupConfig, $"Assets/Resources/BigWorld/{s_worldName}/{cellX}_{cellZ}/batchGroupConfig_{index}.asset");
+                }
+            }
+        }
+        #endregion
+
         #region OLD
         class BakeBatchItemInfo
         {
@@ -259,6 +332,9 @@ namespace BigCatEditor.BigWorld
                 group.rotations = new List<Quaternion>();
                 group.scales = new List<Vector3>();
                 group.bounds = new List<AABB>();
+                group.hqLightmapIndices = new List<int>();
+                group.mqLightmapIndices = new List<int>();
+                group.lqLightmapIndices = new List<int>();
                 group.hqLightmapScaleOffsets = new List<Vector4>();
                 group.mqLightmapScaleOffsets = new List<Vector4>();
                 group.lqLightmapScaleOffsets = new List<Vector4>();

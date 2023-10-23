@@ -52,6 +52,21 @@ public class BigWorldBatchGroupConfig : ScriptableObject
     public List<AABB> bounds;
 
     /// <summary>
+    /// 高精度Lightmap索引
+    /// </summary>
+    public List<int> hqLightmapIndices;
+
+    /// <summary>
+    /// 中精度Lightmap索引
+    /// </summary>
+    public List<int> mqLightmapIndices;
+
+    /// <summary>
+    /// 低精度Lightmap索引
+    /// </summary>
+    public List<int> lqLightmapIndices;
+
+    /// <summary>
     /// 高精度Lightmap ScaleOffset
     /// </summary>
     public List<Vector4> hqLightmapScaleOffsets;

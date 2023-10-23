@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -23,41 +24,119 @@ namespace BigCatEditor.BigWorld
         /// 低精度Lightmap大小
         /// </summary>
         private const int c_lqLightmapSize = 512;
-        private const int c_lqLightmapBakeResolution = 2;
+        private const int c_lqLightmapBakeResolution = 3;
         
         public static void BakeLightmap(Dictionary<int, List<BigWorldBakerHelper.BigWorldBakeGroup>> bakeGroupsMap)
         {
             foreach (var pair in bakeGroupsMap)
             {
-                var cellIndex = pair.Key;
-                BigWorldBakerHelper.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
-                
-                //首先清理场景对象的Lightmap参数
-                ClearLightmapParams();
-                
-                //给场景对象设置新的Lightmap参数
-                var bakeTag = 100;
-                foreach (var bakeGroup in pair.Value)
+                //高精度
+                PreBakeLightmap(pair.Value, BigWorldBakerHelper.LightmapQuality.High);
+                BakeLightmap(c_hqLightmapSize, c_hqLightmapBakeResolution);
+                PostBakeLightmap(pair.Key, pair.Value, BigWorldBakerHelper.LightmapQuality.High);
+
+                //中精度
+                PreBakeLightmap(pair.Value, BigWorldBakerHelper.LightmapQuality.Med);
+                BakeLightmap(c_mqLightmapSize, c_mqLightmapBakeResolution);
+                PostBakeLightmap(pair.Key, pair.Value, BigWorldBakerHelper.LightmapQuality.Med);
+
+                //低精度
+                PreBakeLightmap(pair.Value, BigWorldBakerHelper.LightmapQuality.Low);
+                BakeLightmap(c_lqLightmapSize, c_lqLightmapBakeResolution);
+                PostBakeLightmap(pair.Key, pair.Value, BigWorldBakerHelper.LightmapQuality.Low);
+            }
+
+            //刷新
+            AssetDatabase.Refresh();
+        }
+
+        private static void PreBakeLightmap(List<BigWorldBakerHelper.BigWorldBakeGroup> bakeGroups, BigWorldBakerHelper.LightmapQuality quality)
+        {
+            //首先清理场景对象的Lightmap参数
+            ClearLightmap();
+            ClearLightmapParams();
+
+            //给场景对象设置新的Lightmap参数
+            var lightmapParam = new LightmapParameters() { bakedLightmapTag = 100 };
+            foreach (var bakeGroup in bakeGroups)
+            {
+                foreach (var item in bakeGroup.items)
                 {
-                    var lightmapParam = new LightmapParameters()
+                    SetLightmapParamsOfRenderer(item.renderer, lightmapParam, quality, false);
+                }
+            }
+        }
+
+        private static void PostBakeLightmap(int cellIndex, List<BigWorldBakerHelper.BigWorldBakeGroup> bakeGroups, BigWorldBakerHelper.LightmapQuality quality)
+        {
+            //检查Lightmap输出路径
+            BigWorldBakerHelper.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
+            var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/{cellX}_{cellZ}/";
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+
+            //获取有效的Lightmap索引
+            var lightmapIndices = new List<int>();
+            foreach (var bakeGroup in bakeGroups)
+            {
+                foreach (var item in bakeGroup.items)
+                {
+                    var lightmapIndex = item.renderer.lightmapIndex;
+                    if (!lightmapIndices.Contains(lightmapIndex))
                     {
-                        bakedLightmapTag = bakeTag++,
-                        limitLightmapCount = true,
-                        maxLightmapCount = 1,
-                    };
-                    
-                    foreach (var item in bakeGroup.items)
+                        lightmapIndices.Add(lightmapIndex);
+                    }
+
+                    if (quality == BigWorldBakerHelper.LightmapQuality.High)
                     {
-                        SetLightmapParamsOfRenderer(item.renderer, lightmapParam);
+                        item.hqLightmapIndex = lightmapIndices.IndexOf(lightmapIndex);
+                        item.hqLightmapScaleOffset = item.renderer.lightmapScaleOffset;
+                    }
+                    else if (quality == BigWorldBakerHelper.LightmapQuality.Med)
+                    {
+                        item.mqLightmapIndex = lightmapIndices.IndexOf(lightmapIndex);
+                        item.mqLightmapScaleOffset = item.renderer.lightmapScaleOffset;
+                    }
+                    else
+                    {
+                        item.lqLightmapIndex = lightmapIndices.IndexOf(lightmapIndex);
+                        item.lqLightmapScaleOffset = item.renderer.lightmapScaleOffset;
                     }
                 }
-                
-                //烘焙高精度Lightmap
-                ClearLightmap();
-                BakeLightmap(c_hqLightmapSize, c_hqLightmapBakeResolution);
-                
-                //break;
             }
+
+            //复制Lightmap
+            var lightmapCopyPathes = new List<string>();
+            var lightmapPrefix = quality == BigWorldBakerHelper.LightmapQuality.High ? "shq_lightmap" : (quality == BigWorldBakerHelper.LightmapQuality.Med ? "smq_lightmap" : "slq_lightmap");
+            for (var i = 0; i < lightmapIndices.Count; ++i)
+            {
+                var lightmapIndex = lightmapIndices[i];
+                var lightmapTexture = LightmapSettings.lightmaps[lightmapIndex].lightmapColor;
+                var lightmapPath = AssetDatabase.GetAssetPath(lightmapTexture);
+                var lightmapCopyPath = $"{folder}/{lightmapPrefix}_{i}.exr";
+                lightmapCopyPathes.Add(lightmapCopyPath);
+                AssetDatabase.CopyAsset(lightmapPath, lightmapCopyPath);
+            }
+
+            //刷新
+            AssetDatabase.Refresh();
+
+            //修改Lightmap设置
+            AssetDatabase.StartAssetEditing();
+            foreach (var path in lightmapCopyPathes)
+            {
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer != null)
+                {
+                    importer.isReadable = true;
+                    importer.mipmapEnabled = false;
+
+                    importer.SaveAndReimport();
+                }
+            }
+            AssetDatabase.StopAssetEditing();
         }
         
         /// <summary>
@@ -104,9 +183,27 @@ namespace BigCatEditor.BigWorld
         /// <summary>
         /// 设置Renderer的Lightmap参数
         /// </summary>
-        private static void SetLightmapParamsOfRenderer(MeshRenderer renderer, LightmapParameters lightmapParam)
+        private static void SetLightmapParamsOfRenderer(MeshRenderer renderer, LightmapParameters lightmapParam, BigWorldBakerHelper.LightmapQuality quality, bool castShadowOnly)
         {
-            renderer.scaleInLightmap = 1.0f;
+            if (castShadowOnly)
+            {
+                renderer.scaleInLightmap = 0;
+            }
+            else
+            {
+                if (quality == BigWorldBakerHelper.LightmapQuality.High)
+                {
+                    renderer.scaleInLightmap = 1.5f;
+                }
+                else if (quality == BigWorldBakerHelper.LightmapQuality.Med)
+                {
+                    renderer.scaleInLightmap = 1.0f;
+                }
+                else
+                {
+                    renderer.scaleInLightmap = 0.5f;
+                }
+            }
             renderer.stitchLightmapSeams = false;
 
             var so = new SerializedObject(renderer);
