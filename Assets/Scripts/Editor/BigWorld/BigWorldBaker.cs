@@ -48,6 +48,9 @@ namespace BigCatEditor.BigWorld
             //创建BatchGroup配置
             CreateBatchGroupConfigs(bakeGroupsMap);
 
+            //创建大世界运行时配置
+            CreateBigWorldConfigs();
+
             //烘焙完成
             AssetDatabase.Refresh();
             Debug.LogError("烘焙完成");
@@ -103,9 +106,16 @@ namespace BigCatEditor.BigWorld
                         batchGroupConfig.lqLightmapScaleOffsets.Add(item.lqLightmapScaleOffset);
                     }
 
-                    AssetDatabase.CreateAsset(batchGroupConfig, $"Assets/Resources/BigWorld/{s_worldName}/{cellX}_{cellZ}/batchGroupConfig_{index}.asset");
+                    AssetDatabase.CreateAsset(batchGroupConfig, $"Assets/Resources/BigWorld/{s_worldName}/cell_{cellX}_{cellZ}/batchGroupConfig_{index}.asset");
                 }
             }
+        }
+        #endregion
+
+        #region BigWorldConfig
+        private static void CreateBigWorldConfigs()
+        {
+            var cellFolders = Directory.GetDirectories($"Assets/Resources/BigWorld/{s_worldName}", "cell_*", SearchOption.TopDirectoryOnly);
         }
         #endregion
 

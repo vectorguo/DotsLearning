@@ -71,7 +71,7 @@ namespace BigCatEditor.BigWorld
         {
             //检查Lightmap输出路径
             BigWorldBakerHelper.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
-            var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/{cellX}_{cellZ}/";
+            var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/cell_{cellX}_{cellZ}/";
             if (!Directory.Exists(folder))
             {
                 Directory.CreateDirectory(folder);
