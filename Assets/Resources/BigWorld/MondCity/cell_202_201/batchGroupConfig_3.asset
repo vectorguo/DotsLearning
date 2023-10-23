@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4696bc1af980844a69d092095a286ecb, type: 3}
+  m_Name: batchGroupConfig_3
+  m_EditorClassIdentifier: 
+  name: 
+  lods:
+  - mesh: {fileID: 1096181189460878527, guid: 96dbab48757cb1145bc1ba05d2c044ba, type: 3}
+    material: {fileID: 2100000, guid: 3d19726b3a5befb4a941314e9bd1020e, type: 2}
+    lodMinDistance: 0
+    lodMaxDistance: 30
+  - mesh: {fileID: -660817838276840645, guid: 96dbab48757cb1145bc1ba05d2c044ba, type: 3}
+    material: {fileID: 2100000, guid: 3d19726b3a5befb4a941314e9bd1020e, type: 2}
+    lodMinDistance: 30
+    lodMaxDistance: -1
+  count: 1
+  positions:
+  - {x: 519.72, y: -0.000015258789, z: 326.16}
+  rotations:
+  - {x: 0.000000020950829, y: -0.2847623, z: 0.0000000062236776, w: 0.9585982}
+  scales:
+  - {x: 2, y: 2, z: 2}
+  bounds:
+  - Center:
+      x: 519.66846
+      y: 6.422649
+      z: 326.24667
+    Extents:
+      x: 10.574025
+      y: 6.424968
+      z: 10.378866
+  hqLightmapIndices: 00000000
+  mqLightmapIndices: 00000000
+  lqLightmapIndices: 00000000
+  hqLightmapScaleOffsets:
+  - {x: 0.15553322, y: 0.15553322, z: 0.1671694, w: -0.00031106736}
+  mqLightmapScaleOffsets:
+  - {x: 0.1383608, y: 0.1383608, z: 0.14913733, w: -0.00027672242}
+  lqLightmapScaleOffsets:
+  - {x: 0.10205335, y: 0.10205335, z: 0.11307714, w: -0.0002041073}

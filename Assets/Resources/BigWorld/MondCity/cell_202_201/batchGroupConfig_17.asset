@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4696bc1af980844a69d092095a286ecb, type: 3}
+  m_Name: batchGroupConfig_17
+  m_EditorClassIdentifier: 
+  name: 
+  lods:
+  - mesh: {fileID: 4581766640667758101, guid: 41041ebfd0a5dd2429ad16a7c852e537, type: 3}
+    material: {fileID: 2100000, guid: 2faabd4242dad7e479ac70fb8d0c8547, type: 2}
+    lodMinDistance: 0
+    lodMaxDistance: 30
+  - mesh: {fileID: -4216047246834610342, guid: 41041ebfd0a5dd2429ad16a7c852e537, type: 3}
+    material: {fileID: 2100000, guid: 2faabd4242dad7e479ac70fb8d0c8547, type: 2}
+    lodMinDistance: 30
+    lodMaxDistance: 60
+  - mesh: {fileID: -1501438558308483173, guid: 41041ebfd0a5dd2429ad16a7c852e537, type: 3}
+    material: {fileID: 2100000, guid: 2faabd4242dad7e479ac70fb8d0c8547, type: 2}
+    lodMinDistance: 60
+    lodMaxDistance: -1
+  count: 3
+  positions:
+  - {x: 547.16, y: 5.59, z: 323.82}
+  - {x: 537.27, y: 6.59, z: 314.68}
+  - {x: 540.35, y: -2.28, z: 329.07}
+  rotations:
+  - {x: -0.000000012103017, y: 0.8326699, z: -0.000000018198579, w: -0.5537695}
+  - {x: -0.18315896, y: 0.8980542, z: 0.07992268, w: -0.39187226}
+  - {x: -0.07240938, y: -0.45223206, z: -0.18690827, w: -0.8690847}
+  scales:
+  - {x: 0.24999991, y: 0.25, z: 0.24999991}
+  - {x: 0.25000003, y: 0.25, z: 0.25000003}
+  - {x: 0.37499994, y: 0.375, z: 0.375}
+  bounds:
+  - Center:
+      x: 546.4045
+      y: 8.923496
+      z: 324.33093
+    Extents:
+      x: 9.207836
+      y: 5.682068
+      z: 8.542665
+  - Center:
+      x: 535.5386
+      y: 9.358318
+      z: 315.81247
+    Extents:
+      x: 10.794331
+      y: 7.640456
+      z: 10.820373
+  - Center:
+      x: 540.2585
+      y: 2.7977612
+      z: 330.11023
+    Extents:
+      x: 16.053358
+      y: 11.924611
+      z: 15.9712
+  hqLightmapIndices: 000000000000000000000000
+  mqLightmapIndices: 000000000000000000000000
+  lqLightmapIndices: 000000000000000000000000
+  hqLightmapScaleOffsets:
+  - {x: 0.1121779, y: 0.1121779, z: 0.32248607, w: -0.00050577393}
+  - {x: 0.1121779, y: 0.1121779, z: 0.43430248, w: -0.00050577393}
+  - {x: 0.16851394, y: 0.16851394, z: -0.0007387356, w: -0.00075977494}
+  mqLightmapScaleOffsets:
+  - {x: 0.099823505, y: 0.099823505, z: 0.28838974, w: -0.00045007194}
+  - {x: 0.099823505, y: 0.099823505, z: 0.38897568, w: -0.00045007194}
+  - {x: 0.14924107, y: 0.14924107, z: -0.0006542467, w: -0.0006728798}
+  lqLightmapScaleOffsets:
+  - {x: 0.07313801, y: 0.07313801, z: 0.21825592, w: -0.00032975568}
+  - {x: 0.07313801, y: 0.07313801, z: 0.2944278, w: -0.00032975568}
+  - {x: 0.11069537, y: 0.11069537, z: -0.0004852691, w: -0.00049908966}
