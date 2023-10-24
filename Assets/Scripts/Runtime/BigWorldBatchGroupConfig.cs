@@ -16,11 +16,6 @@ public class BigWorldBatchGroupConfig : ScriptableObject
     }
 
     /// <summary>
-    /// 名称
-    /// </summary>
-    public new string name;
-
-    /// <summary>
     /// LOD
     /// </summary>
     [SerializeField]

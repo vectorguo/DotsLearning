@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4696bc1af980844a69d092095a286ecb, type: 3}
   m_Name: batchGroupConfig_3
   m_EditorClassIdentifier: 
-  name: 
   lods:
   - mesh: {fileID: 1096181189460878527, guid: 96dbab48757cb1145bc1ba05d2c044ba, type: 3}
     material: {fileID: 2100000, guid: 3d19726b3a5befb4a941314e9bd1020e, type: 2}
@@ -39,11 +38,11 @@ MonoBehaviour:
       y: 6.424968
       z: 10.378866
   hqLightmapIndices: 00000000
-  mqLightmapIndices: 00000000
-  lqLightmapIndices: 00000000
+  mqLightmapIndices: 01000000
+  lqLightmapIndices: 02000000
   hqLightmapScaleOffsets:
-  - {x: 0.15553322, y: 0.15553322, z: 0.1671694, w: -0.00031106736}
+  - {x: 0.20705055, y: 0.20705055, z: 0.22321871, w: -0.0004141023}
   mqLightmapScaleOffsets:
-  - {x: 0.1383608, y: 0.1383608, z: 0.14913733, w: -0.00027672242}
+  - {x: 0.10303463, y: 0.10303463, z: 0.11209862, w: -0.00020606988}
   lqLightmapScaleOffsets:
-  - {x: 0.10205335, y: 0.10205335, z: 0.11307714, w: -0.0002041073}
+  - {x: 0.051026676, y: 0.051026676, z: 0.05653857, w: -0.00010205365}

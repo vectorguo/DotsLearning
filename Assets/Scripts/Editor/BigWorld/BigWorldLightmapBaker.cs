@@ -11,7 +11,7 @@ namespace BigCatEditor.BigWorld
         /// <summary>
         /// 高精度Lightmap大小
         /// </summary>
-        private const int c_hqLightmapSize = 2048;
+        private const int c_hqLightmapSize = 1024;
         private const int c_hqLightmapBakeResolution = 6;
         
         /// <summary>
@@ -23,7 +23,7 @@ namespace BigCatEditor.BigWorld
         /// <summary>
         /// 低精度Lightmap大小
         /// </summary>
-        private const int c_lqLightmapSize = 512;
+        private const int c_lqLightmapSize = 1024;
         private const int c_lqLightmapBakeResolution = 3;
         
         public static void BakeLightmap(Dictionary<int, List<BigWorldBakerHelper.BigWorldBakeGroup>> bakeGroupsMap)
@@ -133,6 +133,11 @@ namespace BigCatEditor.BigWorld
                     importer.isReadable = true;
                     importer.mipmapEnabled = false;
 
+                    var androidSetting = importer.GetPlatformTextureSettings("Android");
+                    androidSetting.overridden = true;
+                    androidSetting.format = TextureImporterFormat.ASTC_6x6;
+                    importer.SetPlatformTextureSettings(androidSetting);
+                    
                     importer.SaveAndReimport();
                 }
             }
@@ -193,11 +198,11 @@ namespace BigCatEditor.BigWorld
             {
                 if (quality == BigWorldBakerHelper.LightmapQuality.High)
                 {
-                    renderer.scaleInLightmap = 1.5f;
+                    renderer.scaleInLightmap = 1.0f;
                 }
                 else if (quality == BigWorldBakerHelper.LightmapQuality.Med)
                 {
-                    renderer.scaleInLightmap = 1.0f;
+                    renderer.scaleInLightmap = 0.75f;
                 }
                 else
                 {
