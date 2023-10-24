@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   lods:
   - mesh: {fileID: 4581766640667758101, guid: 41041ebfd0a5dd2429ad16a7c852e537, type: 3}
-    material: {fileID: 0}
+    material: {fileID: 2100000, guid: 2faabd4242dad7e479ac70fb8d0c8547, type: 2}
     lodMinDistance: 0
     lodMaxDistance: 30
   - mesh: {fileID: -4216047246834610342, guid: 41041ebfd0a5dd2429ad16a7c852e537, type: 3}
@@ -45,8 +45,8 @@ MonoBehaviour:
   mqLightmapIndices: 01000000
   lqLightmapIndices: 02000000
   hqLightmapScaleOffsets:
-  - {x: 0.44969994, y: 0.44969994, z: -0.0019714057, w: -0.0020275516}
+  - {x: 0.67405576, y: 0.67405576, z: -0.0029549424, w: -0.0030390997}
   mqLightmapScaleOffsets:
-  - {x: 0.2243558, y: 0.2243558, z: -0.0009835365, w: -0.0010115479}
+  - {x: 0.2994705, y: 0.2994705, z: -0.0013128263, w: -0.0013502158}
   lqLightmapScaleOffsets:
   - {x: 0.11168372, y: 0.11168372, z: -0.00048960187, w: -0.0005035458}

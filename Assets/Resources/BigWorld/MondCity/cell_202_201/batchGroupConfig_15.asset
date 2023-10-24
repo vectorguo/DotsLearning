@@ -13,64 +13,36 @@ MonoBehaviour:
   m_Name: batchGroupConfig_15
   m_EditorClassIdentifier: 
   lods:
-  - mesh: {fileID: 8019952833032506075, guid: bcb4b2ca46d5b5440a5c873169c12bba, type: 3}
-    material: {fileID: 2100000, guid: 4c82b5566f025054e8b4dfdef5b20312, type: 2}
+  - mesh: {fileID: -2863812477952250327, guid: 9e56b27579adab24abf73e856d721cc7, type: 3}
+    material: {fileID: 2100000, guid: 49f94ad471dc8744ca02d20d06d4fe53, type: 2}
     lodMinDistance: 0
     lodMaxDistance: 30
-  - mesh: {fileID: 367789379028350229, guid: bcb4b2ca46d5b5440a5c873169c12bba, type: 3}
-    material: {fileID: 2100000, guid: 4c82b5566f025054e8b4dfdef5b20312, type: 2}
+  - mesh: {fileID: -1805124223614178220, guid: 9e56b27579adab24abf73e856d721cc7, type: 3}
+    material: {fileID: 2100000, guid: 49f94ad471dc8744ca02d20d06d4fe53, type: 2}
     lodMinDistance: 30
     lodMaxDistance: -1
-  count: 3
+  count: 1
   positions:
-  - {x: 535.05, y: 0, z: 464.12}
-  - {x: 521.45996, y: 0, z: 448.77}
-  - {x: 523.78, y: 0, z: 463.99}
+  - {x: 535.79004, y: 0, z: 447.75998}
   rotations:
-  - {x: -0, y: 1, z: -0.000000021855694, w: 0}
   - {x: -0.000000021855694, y: -0, z: -0, w: -1}
-  - {x: -0, y: 1, z: -0.000000021855694, w: 0}
   scales:
-  - {x: 1, y: 1, z: 1}
-  - {x: 1, y: 1, z: 1}
-  - {x: 1, y: 1, z: 1}
+  - {x: 1.5, y: 1.5, z: 1.5}
   bounds:
   - Center:
-      x: 535.05
-      y: 1.0437303
-      z: 464.12
+      x: 535.79
+      y: 1.7880968
+      z: 447.74997
     Extents:
-      x: 1.0896252
-      y: 1.0511472
-      z: 1.0482984
-  - Center:
-      x: 521.45996
-      y: 1.0437303
-      z: 448.77
-    Extents:
-      x: 1.0896252
-      y: 1.0511472
-      z: 1.0482984
-  - Center:
-      x: 523.78
-      y: 1.0437303
-      z: 463.99
-    Extents:
-      x: 1.0896252
-      y: 1.0511472
-      z: 1.0482984
-  hqLightmapIndices: 000000000000000000000000
-  mqLightmapIndices: 010000000100000001000000
-  lqLightmapIndices: 020000000200000002000000
+      x: 1.3911806
+      y: 1.7996539
+      z: 0.88508344
+  hqLightmapIndices: 01000000
+  mqLightmapIndices: 02000000
+  lqLightmapIndices: 03000000
   hqLightmapScaleOffsets:
-  - {x: 0.02660216, y: 0.02660216, z: 0.69975805, w: 0.14858675}
-  - {x: 0.02660216, y: 0.02660216, z: 0.69975805, w: 0.18569613}
-  - {x: 0.02660216, y: 0.02660216, z: 0.19460183, w: 0.95374763}
+  - {x: 0.056257717, y: 0.056257717, z: 0.34239647, w: 0.85281986}
   mqLightmapScaleOffsets:
-  - {x: 0.012808447, y: 0.012808447, z: 0.3347602, w: 0.094317175}
-  - {x: 0.012808447, y: 0.012808447, z: 0.34940863, w: 0.094317175}
-  - {x: 0.012808447, y: 0.012808447, z: 0.8333606, w: 0.09272468}
+  - {x: 0.024674438, y: 0.024674438, z: 0.6370849, w: 0.107201256}
   lqLightmapScaleOffsets:
-  - {x: 0.005911591, y: 0.005911591, z: 0.27409148, w: 0.0312275}
-  - {x: 0.005911591, y: 0.005911591, z: 0.27409148, w: 0.039033905}
-  - {x: 0.005911591, y: 0.005911591, z: 0.27409148, w: 0.04684031}
+  - {x: 0.008882797, y: 0.008882797, z: 0.64054745, w: 0.032148886}

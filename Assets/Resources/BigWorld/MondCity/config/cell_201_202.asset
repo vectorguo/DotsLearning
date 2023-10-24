@@ -15,6 +15,6 @@ MonoBehaviour:
   x: 201
   z: 202
   batchGroupCount: 3
-  hqLightmapCount: 2
+  hqLightmapCount: 4
   mqLightmapCount: 1
   lqLightmapCount: 1

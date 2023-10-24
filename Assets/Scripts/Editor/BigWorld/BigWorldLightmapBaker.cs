@@ -198,11 +198,11 @@ namespace BigCatEditor.BigWorld
             {
                 if (quality == BigWorldBakerHelper.LightmapQuality.High)
                 {
-                    renderer.scaleInLightmap = 1.0f;
+                    renderer.scaleInLightmap = 1.5f;
                 }
                 else if (quality == BigWorldBakerHelper.LightmapQuality.Med)
                 {
-                    renderer.scaleInLightmap = 0.75f;
+                    renderer.scaleInLightmap = 1.0f;
                 }
                 else
                 {

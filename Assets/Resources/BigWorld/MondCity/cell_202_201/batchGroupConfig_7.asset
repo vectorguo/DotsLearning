@@ -41,12 +41,12 @@ MonoBehaviour:
       x: 4.967612
       y: 3.1897817
       z: 4.9675727
-  hqLightmapIndices: 00000000
-  mqLightmapIndices: 01000000
-  lqLightmapIndices: 02000000
+  hqLightmapIndices: 01000000
+  mqLightmapIndices: 02000000
+  lqLightmapIndices: 03000000
   hqLightmapScaleOffsets:
-  - {x: 0.13849594, y: 0.13849594, z: 0.72983986, w: -0.0002769919}
+  - {x: 0.20823503, y: 0.20823503, z: -0.00041647008, w: 0.55544615}
   mqLightmapScaleOffsets:
-  - {x: 0.06875685, y: 0.06875685, z: 0.36687487, w: -0.0001375137}
+  - {x: 0.09233062, y: 0.09233062, z: 0.48981458, w: -0.00018466124}
   lqLightmapScaleOffsets:
   - {x: 0.034378424, y: 0.034378424, z: 0.1853914, w: -0.00006875685}

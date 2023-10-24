@@ -55,20 +55,21 @@ namespace BigCat.BigWorld
 #endif
             m_lightmaps = new Texture2DArray(1024, 1024, m_config.totalLightmapCount, format, false);
 
-            var offset = 0;
-            for (var i = 0; i < m_config.hqLightmapCount; ++i, ++offset)
+            for (var i = 0; i < m_config.hqLightmapCount; ++i)
             {
                 var lightmap = Resources.Load<Texture2D>($"BigWorld/{worldName}/cell_{m_config.x}_{m_config.z}/shq_lightmap_{i}");
-                m_lightmaps.SetPixelData(lightmap.GetPixelData<byte>(0), 0, offset + i);
+                m_lightmaps.SetPixelData(lightmap.GetPixelData<byte>(0), 0, i);
             }
 
-            for (var i = 0; i < m_config.mqLightmapCount; ++i, ++offset)
+            var offset = m_config.hqLightmapCount;
+            for (var i = 0; i < m_config.mqLightmapCount; ++i)
             {
                 var lightmap = Resources.Load<Texture2D>($"BigWorld/{worldName}/cell_{m_config.x}_{m_config.z}/smq_lightmap_{i}");
                 m_lightmaps.SetPixelData(lightmap.GetPixelData<byte>(0), 0, offset + i);
             }
-            
-            for (var i = 0; i < m_config.lqLightmapCount; ++i, ++offset)
+
+            offset += m_config.mqLightmapCount;
+            for (var i = 0; i < m_config.lqLightmapCount; ++i)
             {
                 var lightmap = Resources.Load<Texture2D>($"BigWorld/{worldName}/cell_{m_config.x}_{m_config.z}/slq_lightmap_{i}");
                 m_lightmaps.SetPixelData(lightmap.GetPixelData<byte>(0), 0, offset + i);

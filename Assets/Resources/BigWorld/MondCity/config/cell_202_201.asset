@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   x: 202
   z: 201
-  batchGroupCount: 20
-  hqLightmapCount: 1
+  batchGroupCount: 21
+  hqLightmapCount: 2
   mqLightmapCount: 1
   lqLightmapCount: 1

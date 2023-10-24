@@ -39,13 +39,13 @@ namespace BigCat.BigWorld
         /// <summary>
         /// 高精度Lightmap的显示距离
         /// </summary>
-        public static readonly float hqLightmapDistance = 10;
+        public static readonly float hqLightmapDistance = 30;
         public static float hqLightmapDistanceSq => hqLightmapDistance * hqLightmapDistance;
 
         /// <summary>
         /// 中精度Lightmap的显示距离
         /// </summary>
-        public static readonly float mqLightmapDistance = 20;
+        public static readonly float mqLightmapDistance = 60;
         public static float mqLightmapDistanceSq => mqLightmapDistance * mqLightmapDistance;
 
         /// <summary>

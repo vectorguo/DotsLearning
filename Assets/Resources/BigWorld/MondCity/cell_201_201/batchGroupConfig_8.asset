@@ -27,26 +27,26 @@ MonoBehaviour:
     lodMaxDistance: -1
   count: 1
   positions:
-  - {x: 326.4, y: 0, z: 496.3}
+  - {x: 328.2, y: 0, z: 500.1}
   rotations:
-  - {x: 0.00000008146034, y: -0, z: -0, w: 1}
+  - {x: 0.0000000753643, y: -0.3795639, z: 0.000000030919406, w: 0.92516553}
   scales:
   - {x: 1, y: 1, z: 1}
   bounds:
   - Center:
-      x: 326.4
+      x: 328.2
       y: 5.1683183
-      z: 496.3
+      z: 500.1
     Extents:
-      x: 10.390899
+      x: 13.702767
       y: 5.1701326
-      z: 8.978652
-  hqLightmapIndices: 00000000
-  mqLightmapIndices: 03000000
-  lqLightmapIndices: 04000000
+      z: 13.689289
+  hqLightmapIndices: 03000000
+  mqLightmapIndices: 09000000
+  lqLightmapIndices: 0a000000
   hqLightmapScaleOffsets:
-  - {x: 0.23923822, y: 0.23923822, z: 0.4458106, w: -0.00047847646}
+  - {x: 0.35885733, y: 0.35885733, z: -0.0007177147, w: -0.0007177147}
   mqLightmapScaleOffsets:
-  - {x: 0.11961911, y: 0.11961911, z: 0.22339357, w: -0.00023923823}
+  - {x: 0.1588385, y: 0.1588385, z: 0.2975339, w: -0.000317677}
   lqLightmapScaleOffsets:
   - {x: 0.059809554, y: 0.059809554, z: 0.11218507, w: -0.000119619115}
