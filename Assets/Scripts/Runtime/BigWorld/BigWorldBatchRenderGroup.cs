@@ -465,7 +465,7 @@ namespace BigCat.BigWorld
             /// <summary>
             /// 该Batch在BRG中的ID
             /// </summary>
-            private BatchID m_batchID;
+            private readonly BatchID m_batchID;
             public BatchID batchID => m_batchID;
 
             /// <summary>
@@ -551,18 +551,18 @@ namespace BigCat.BigWorld
             /// <summary>
             /// 材质
             /// </summary>
-            private Material m_material;
+            private readonly Material m_material;
 
             /// <summary>
             /// 材质在BRG中的注册ID
             /// </summary>
-            private BatchMaterialID m_materialID;
+            private readonly BatchMaterialID m_materialID;
             public BatchMaterialID materialID => m_materialID;
 
             /// <summary>
             /// Mesh在BRG中的注册ID
             /// </summary>
-            private BatchMeshID m_meshID;
+            private readonly BatchMeshID m_meshID;
             public BatchMeshID meshID => m_meshID;
 
             /// <summary>

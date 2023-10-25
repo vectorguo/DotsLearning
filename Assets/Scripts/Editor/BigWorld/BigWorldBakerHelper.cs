@@ -5,18 +5,19 @@ using UnityEngine.SceneManagement;
 
 namespace BigCatEditor.BigWorld
 {
+    /// <summary>
+    /// Lightmap贴图质量
+    /// </summary>
+    public enum LightmapQuality
+    {
+        High,
+        Med,
+        Low,
+        None,
+    }
+    
     public static class BigWorldBakerHelper
     {
-        /// <summary>
-        /// Lightmap贴图质量
-        /// </summary>
-        public enum LightmapQuality
-        {
-            High,
-            Med,
-            Low
-        }
-        
         /// <summary>
         /// 格子大小
         /// </summary>
@@ -90,12 +91,44 @@ namespace BigCatEditor.BigWorld
         /// <param name="baseInstanceID">基础ID</param>
         public static void CreateBakeDataOfScene(GameObject sceneRoot, int baseInstanceID)
         {
-            CreateBakeDataOfGameObjects(sceneRoot.transform);
-            CreateBakeIDOfGameObjects(sceneRoot, baseInstanceID);
+            CreateBakeDataOfTerrains(sceneRoot.transform, baseInstanceID);
+            CreateBakeDataOfSceneObjects(sceneRoot.transform);
+            CreateBakeIDOfGameObjects(sceneRoot, baseInstanceID + 256);
+        }
+
+        private static void CreateBakeDataOfTerrains(Transform root, int baseTerrainID)
+        {
+            var terrainID = baseTerrainID;
+            var terrainRoot = root.Find("Terrains");
+            if (terrainRoot != null)
+            {
+                var terrains = terrainRoot.GetComponentsInChildren<Terrain>();
+                foreach (var terrain in terrains)
+                {
+                    if (!terrain.gameObject.TryGetComponent<BigWorldTerrainBakeData>(out var bakeData))
+                    {
+                        bakeData = terrain.gameObject.AddComponent<BigWorldTerrainBakeData>();
+                    }
+                    bakeData.instanceID = terrainID++;
+                    bakeData.terrain = terrain;
+                    
+                    //计算Cell坐标
+                    var position = terrain.transform.position;
+                    bakeData.cellX = GetCellCoordinateBaseOri(position.x);
+                    bakeData.cellZ = GetCellCoordinateBaseOri(position.z);
+                    bakeData.cellIndex = GetCellIndex(bakeData.cellX, bakeData.cellZ);
+                }
+            }
         }
         
-        private static void CreateBakeDataOfGameObjects(Transform root)
+        private static void CreateBakeDataOfSceneObjects(Transform root)
         {
+            //检查是否是Terrain
+            if (root.TryGetComponent<BigWorldTerrainBakeData>(out var _))
+            {
+                return;
+            }
+            
             //检查root身上是否有LODGroup组件
             if (root.TryGetComponent<LODGroup>(out var lodGroup))
             {
@@ -112,7 +145,7 @@ namespace BigCatEditor.BigWorld
                 else
                 {
                     //删除无效的烘焙数据组件
-                    if (root.TryGetComponent<BigWorldBakeData>(out var bakeData))
+                    if (root.TryGetComponent<BigWorldObjBakeData>(out var bakeData))
                     {
                         Object.DestroyImmediate(bakeData);
                     }
@@ -121,16 +154,16 @@ namespace BigCatEditor.BigWorld
                 //继续向下遍历
                 for (var i = 0; i < root.transform.childCount; ++i)
                 {
-                    CreateBakeDataOfGameObjects(root.transform.GetChild(i));
+                    CreateBakeDataOfSceneObjects(root.transform.GetChild(i));
                 }
             }
         }
 
         private static void CreateBakeDataOfGameObject(GameObject go, LODGroup lodGroup)
         {
-            if (!go.TryGetComponent<BigWorldBakeData>(out var bakeData))
+            if (!go.TryGetComponent<BigWorldObjBakeData>(out var bakeData))
             {
-                bakeData = go.AddComponent<BigWorldBakeData>();
+                bakeData = go.AddComponent<BigWorldObjBakeData>();
             }
             
             //计算Cell坐标
@@ -169,7 +202,7 @@ namespace BigCatEditor.BigWorld
         private static void CreateBakeIDOfGameObjects(GameObject sceneRoot, int baseInstanceID)
         {
             var instanceID = baseInstanceID;
-            var bakeDataComponents = sceneRoot.GetComponentsInChildren<BigWorldBakeData>();
+            var bakeDataComponents = sceneRoot.GetComponentsInChildren<BigWorldObjBakeData>();
             foreach (var bakeData in bakeDataComponents)
             {
                 bakeData.instanceID = ++instanceID;
@@ -178,6 +211,15 @@ namespace BigCatEditor.BigWorld
         #endregion
         
         #region 烘焙组
+        /// <summary>
+        /// 每个Cell的烘焙数据
+        /// </summary>
+        public class BigWorldBakeDataOfCell
+        {
+            public readonly List<BigWorldBakeGroup> bakeGroups = new List<BigWorldBakeGroup>();
+            public Terrain terrain;
+        }
+        
         /// <summary>
         /// 大世界烘焙数据组
         /// </summary>
@@ -215,15 +257,15 @@ namespace BigCatEditor.BigWorld
                 };
             }
 
-            public BigWorldBakeGroup(int cellIndex, BigWorldBakeData bakeData, int rendererIndex)
+            public BigWorldBakeGroup(int cellIndex, BigWorldObjBakeData objBakeData, int rendererIndex)
             {
                 this.cellIndex = cellIndex;
                 lods = new List<BigWorldBakeGroupLOD>();
                 
-                var lodCount = bakeData.renderers.Length;
+                var lodCount = objBakeData.renderers.Length;
                 for (var lodLevel = 0; lodLevel < lodCount; ++lodLevel)
                 {
-                    GetMaterialAndMesh(bakeData.renderers[lodLevel][rendererIndex], out var material, out var mesh);
+                    GetMaterialAndMesh(objBakeData.renderers[lodLevel][rendererIndex], out var material, out var mesh);
                     lods.Add(new BigWorldBakeGroupLOD
                     {
                         lodLevel = lodLevel,
@@ -233,15 +275,15 @@ namespace BigCatEditor.BigWorld
                 }
             }
 
-            public void AddItem(BigWorldBakeData bakeData, int rendererIndex = 0)
+            public void AddItem(BigWorldObjBakeData objBakeData, int rendererIndex = 0)
             {
-                if (bakeData.lodGroup == null)
+                if (objBakeData.lodGroup == null)
                 {
-                    items.Add(new BigWorldBakeGroupItem(bakeData.renderer));    
+                    items.Add(new BigWorldBakeGroupItem(objBakeData.renderer));    
                 }
                 else
                 {
-                    items.Add(new BigWorldBakeGroupItem(bakeData.renderers[0][rendererIndex]));
+                    items.Add(new BigWorldBakeGroupItem(objBakeData.renderers[0][rendererIndex]));
                 }
             }
         }
@@ -291,9 +333,9 @@ namespace BigCatEditor.BigWorld
         /// <summary>
         /// 获取烘焙组
         /// </summary>
-        public static Dictionary<int, List<BigWorldBakeGroup>> GetBakeGroups()
+        public static Dictionary<int, BigWorldBakeDataOfCell> GetSceneBakeData()
         {
-            var result = new Dictionary<int, List<BigWorldBakeGroup>>();
+            var result = new Dictionary<int, BigWorldBakeDataOfCell>();
             
             var sceneCount = SceneManager.sceneCount;
             for (var i = 0; i < sceneCount; ++i)
@@ -302,37 +344,48 @@ namespace BigCatEditor.BigWorld
                 var rootObjects = scene.GetRootGameObjects();
                 foreach (var rootObject in rootObjects)
                 {
-                    GetBakeGroups(rootObject, result);
+                    GetSceneBakeData(rootObject, result);
                 }
             }
 
             return result;
         }
 
-        private static void GetBakeGroups(GameObject root, Dictionary<int, List<BigWorldBakeGroup>> bakeGroupsMap)
+        private static void GetSceneBakeData(GameObject root, Dictionary<int, BigWorldBakeDataOfCell> bakeInfos)
         {
-            var bakeDataComponents = root.GetComponentsInChildren<BigWorldBakeData>();
-            foreach (var bakeData in bakeDataComponents)
+            var bakeObjDataComponents = root.GetComponentsInChildren<BigWorldObjBakeData>();
+            foreach (var bakeData in bakeObjDataComponents)
             {
-                if (!bakeGroupsMap.TryGetValue(bakeData.cellIndex, out var bakeGroups))
+                if (!bakeInfos.TryGetValue(bakeData.cellIndex, out var bakeInfo))
                 {
-                    bakeGroups = new List<BigWorldBakeGroup>();
-                    bakeGroupsMap.Add(bakeData.cellIndex, bakeGroups);
+                    bakeInfo = new BigWorldBakeDataOfCell();
+                    bakeInfos.Add(bakeData.cellIndex, bakeInfo);
                 }
 
-                var targetBakeGroups = FindBakeGroups(bakeData, bakeGroups);
+                var targetBakeGroups = FindBakeGroups(bakeData, bakeInfo.bakeGroups);
                 for (var i = 0; i < targetBakeGroups.Length; ++i)
                 {
                     targetBakeGroups[i].AddItem(bakeData, i);
                 }
             }
+            
+            var bakeTerrainDataComponents = root.GetComponentsInChildren<BigWorldTerrainBakeData>();
+            foreach (var bakeData in bakeTerrainDataComponents)
+            {
+                if (!bakeInfos.TryGetValue(bakeData.cellIndex, out var bakeInfo))
+                {
+                    bakeInfo = new BigWorldBakeDataOfCell();
+                    bakeInfos.Add(bakeData.cellIndex, bakeInfo);
+                }
+                bakeInfo.terrain = bakeData.terrain;
+            }
         }
 
-        private static BigWorldBakeGroup[] FindBakeGroups(BigWorldBakeData bakeData, List<BigWorldBakeGroup> bakeGroups)
+        private static BigWorldBakeGroup[] FindBakeGroups(BigWorldObjBakeData objBakeData, List<BigWorldBakeGroup> bakeGroups)
         {
-            if (bakeData.lodGroup == null)
+            if (objBakeData.lodGroup == null)
             {
-                GetMaterialAndMesh(bakeData.renderer, out var material, out var mesh);
+                GetMaterialAndMesh(objBakeData.renderer, out var material, out var mesh);
                 
                 //查找已有的BakeGroup
                 foreach (var bakeGroup in bakeGroups)
@@ -346,14 +399,14 @@ namespace BigCatEditor.BigWorld
                 }
                 
                 //创建新的BakeGroup
-                var newBakeGroup = new BigWorldBakeGroup(bakeData.cellIndex, material, mesh);
+                var newBakeGroup = new BigWorldBakeGroup(objBakeData.cellIndex, material, mesh);
                 bakeGroups.Add(newBakeGroup);
                 return new[] { newBakeGroup };
             }
             else
             {
-                var lodCount = bakeData.renderers.Length;
-                var targetBakeGroupCount = bakeData.renderers[0].Length;
+                var lodCount = objBakeData.renderers.Length;
+                var targetBakeGroupCount = objBakeData.renderers[0].Length;
                 var targetBakeGroups = new BigWorldBakeGroup[targetBakeGroupCount];
                 for (var i = 0; i < targetBakeGroupCount; ++i)
                 {
@@ -365,7 +418,7 @@ namespace BigCatEditor.BigWorld
                             var matched = true;
                             for (var lodLevel = 0; lodLevel < lodCount; ++lodLevel)
                             {
-                                var renderer = bakeData.renderers[lodLevel][i];
+                                var renderer = objBakeData.renderers[lodLevel][i];
                                 GetMaterialAndMesh(renderer, out var material, out var mesh);
                                 
                                 var bakeGroupLod = bakeGroup.lods[lodLevel];
@@ -387,7 +440,7 @@ namespace BigCatEditor.BigWorld
                     if (targetBakeGroups[i] == null)
                     {
                         //创建新的BakeGroup
-                        var newBakeGroup = new BigWorldBakeGroup(bakeData.cellIndex, bakeData, i);
+                        var newBakeGroup = new BigWorldBakeGroup(objBakeData.cellIndex, objBakeData, i);
                         bakeGroups.Add(newBakeGroup);
                         targetBakeGroups[i] = newBakeGroup;
                     }

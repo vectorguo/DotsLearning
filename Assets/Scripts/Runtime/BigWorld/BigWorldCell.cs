@@ -49,9 +49,11 @@ namespace BigCat.BigWorld
         private void InitializeLightmap(string worldName)
         {
 #if UNITY_ANDROID
-            const TextureFormat format = TextureFormat.ASTC_6x6; 
+            const TextureFormat format = TextureFormat.ASTC_6x6;
+#elif UNITY_IOS
+            const TextureFormat format = TextureFormat.ASTC_6x6;
 #else
-            const TextureFormat format = TextureFormat.DXT5;
+            const TextureFormat format = TextureFormat.BC6H;
 #endif
             m_lightmaps = new Texture2DArray(1024, 1024, m_config.totalLightmapCount, format, false);
 

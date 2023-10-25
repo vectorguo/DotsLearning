@@ -44,13 +44,13 @@ namespace BigCatEditor.BigWorld
             EditorSceneManager.MarkSceneDirty(scene);
             
             //获取烘焙组
-            var bakeGroupsMap = BigWorldBakerHelper.GetBakeGroups();
+            var sceneBakeData = BigWorldBakerHelper.GetSceneBakeData();
             
             //烘焙Lightmap
-            BigWorldLightmapBaker.BakeLightmap(bakeGroupsMap);
+            BigWorldLightmapBaker.BakeLightmap(sceneBakeData);
             
             //创建BatchGroup配置
-            CreateBatchGroupConfigs(bakeGroupsMap);
+            CreateBatchGroupConfigs(sceneBakeData);
 
             //创建大世界运行时配置
             CreateBigWorldConfigs();
@@ -61,15 +61,15 @@ namespace BigCatEditor.BigWorld
         }
 
         #region BatchGroupConfig
-        private static void CreateBatchGroupConfigs(Dictionary<int, List<BigWorldBakerHelper.BigWorldBakeGroup>> bakeGroupsMap)
+        private static void CreateBatchGroupConfigs(Dictionary<int, BigWorldBakerHelper.BigWorldBakeDataOfCell> bakeGroupsMap)
         {
             foreach (var pair in bakeGroupsMap)
             {
                 BigWorldBakerHelper.GetCellCoordinate(pair.Key, out var cellX, out var cellZ);
 
-                for (var index = 0; index < pair.Value.Count; ++index)
+                for (var index = 0; index < pair.Value.bakeGroups.Count; ++index)
                 {
-                    var bakeGroup = pair.Value[index];
+                    var bakeGroup = pair.Value.bakeGroups[index];
                     var batchGroupConfig = ScriptableObject.CreateInstance<BigWorldBatchGroupConfig>();
                     
                     //LOD
