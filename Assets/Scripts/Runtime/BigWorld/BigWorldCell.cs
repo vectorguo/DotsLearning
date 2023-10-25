@@ -40,14 +40,22 @@ namespace BigCat.BigWorld
         /// </summary>
         public void Destroy()
         {
-            foreach (var batchID in m_batchIDs)
+            if (m_batchIDs != null)
             {
-                BigWorldBatchRenderGroup.instance.RemoveBatchGroup(batchID);
+                foreach (var batchID in m_batchIDs)
+                {
+                    BigWorldBatchRenderGroup.instance.RemoveBatchGroup(batchID);
+                }
             }
         }
 
         private void InitializeLightmap(string worldName)
         {
+            if (m_config.totalLightmapCount == 0)
+            {
+                return;
+            }
+            
 #if UNITY_ANDROID
             const TextureFormat format = TextureFormat.ASTC_6x6;
 #elif UNITY_IOS
@@ -81,6 +89,11 @@ namespace BigCat.BigWorld
 
         private void InitializeBatchGroup(string worldName)
         {
+            if (m_config.batchGroupCount == 0)
+            {
+                return;
+            }
+            
             m_batchIDs = new int[m_config.batchGroupCount];
             for (var i = 0; i < m_config.batchGroupCount; ++i)
             {

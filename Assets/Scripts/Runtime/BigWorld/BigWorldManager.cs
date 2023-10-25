@@ -82,6 +82,12 @@ namespace BigCat.BigWorld
 
         private void OnDestroy()
         {
+            foreach (var cell in m_cells)
+            {
+                cell.Destroy();
+            }
+            m_cells.Clear();
+            
             s_instance = null;
         }
     }
