@@ -75,13 +75,4 @@ public class BigWorldBatchGroupConfig : ScriptableObject
     /// 低精度Lightmap ScaleOffset
     /// </summary>
     public List<Vector4> lqLightmapScaleOffsets;
-
-    public void Destroy()
-    {
-        foreach (var lod in lods)
-        {
-            lod.material.DisableKeyword("LIGHTMAP_ON");
-            lod.material.DisableKeyword("DOTS_INSTANCING_ON");
-        }
-    }
 }

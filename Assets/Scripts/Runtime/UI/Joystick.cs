@@ -51,6 +51,33 @@ public class Joystick : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDrag
             delta.Normalize();
             Player.transform.position += delta * PlayerSpeed * Time.deltaTime;
         }
+
+#if UNITY_EDITOR
+        {
+            var delta = Vector3.zero;
+            if (Input.GetKey(KeyCode.W))
+            {
+                delta += Player.transform.forward * PlayerSpeed * Time.deltaTime;
+            }
+
+            if (Input.GetKey(KeyCode.S))
+            {
+                delta -= Player.transform.forward * PlayerSpeed * Time.deltaTime;
+            }
+
+            if (Input.GetKey(KeyCode.A))
+            {
+                delta -= Player.transform.right * PlayerSpeed * Time.deltaTime;
+            }
+
+            if (Input.GetKey(KeyCode.D))
+            {
+                delta += Player.transform.right * PlayerSpeed * Time.deltaTime;
+            }
+
+            Player.transform.position += delta;
+        }
+#endif
     }
 
     public void OnDrag(PointerEventData eventData)

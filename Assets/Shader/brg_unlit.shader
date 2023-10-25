@@ -42,7 +42,7 @@ Shader "brg/brg_unlit"
                 float2 uv       : TEXCOORD0;
                 float2 uv2      : TEXCOORD01;
                 
-            #if UNITY_ANY_INSTANCING_ENABLED
+            #if defined(UNITY_DOTS_INSTANCING_ENABLED)
 				uint instanceID : INSTANCEID_SEMANTIC;
 			#endif
             };
@@ -52,14 +52,13 @@ Shader "brg/brg_unlit"
                 float4 vertex   : SV_POSITION;
                 float2 uv       : TEXCOORD0;
 
-            #if LIGHTMAP_ON
+            #if defined(UNITY_DOTS_INSTANCING_ENABLED)
+                half2  lmap	    : TEXCOORD1;
+				uint instanceID : CUSTOM_INSTANCE_ID;
+            #elif LIGHTMAP_ON
                 half2  lmap	    : TEXCOORD1;
             #endif
-
-            #if UNITY_ANY_INSTANCING_ENABLED
-				uint instanceID : CUSTOM_INSTANCE_ID;
-			#endif
-            };
+};
 
             sampler2D _MainTex;
 
@@ -91,12 +90,10 @@ Shader "brg/brg_unlit"
                 o.vertex = TransformObjectToHClip(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 
-            #if LIGHTMAP_ON
             #if defined(UNITY_DOTS_INSTANCING_ENABLED)
                 o.lmap = v.uv2.xy * _LightmapST.xy + _LightmapST.zw;
-            #else
+            #elif LIGHTMAP_ON
                 o.lmap = v.uv2.xy * unity_LightmapST.xy + unity_LightmapST.zw;
-            #endif
             #endif
                 return o;
             }
@@ -107,14 +104,13 @@ Shader "brg/brg_unlit"
 
                 half4 col = tex2D(_MainTex, i.uv);
 
-            #if LIGHTMAP_ON
             #if defined(UNITY_DOTS_INSTANCING_ENABLED)
                 half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
                 half3 lm = DecodeLightmap(SAMPLE_TEXTURE2D_ARRAY(_Lightmaps, sampler_Lightmaps, i.lmap, (int)_LightmapIndex), decodeInstructions);
-            #else
+                col.rgb *= lm;
+            #elif LIGHTMAP_ON
                 half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
                 half3 lm = DecodeLightmap(SAMPLE_TEXTURE2D(unity_Lightmap, samplerunity_Lightmap, i.lmap), decodeInstructions);
-            #endif
                 col.rgb *= lm;
             #endif
 

@@ -73,15 +73,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldBatchRenderGroup.cs" />
-    <Compile Include="Assets\Scripts\Runtime\PlayerController.cs" />
     <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldManager.cs" />
     <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldUtility.cs" />
-    <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldBakeData.cs" />
     <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldConfig.cs" />
-    <Compile Include="Assets\Scripts\Runtime\BigWorldBatchGroupConfig.cs" />
+    <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldBatchGroupConfig.cs" />
     <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldCell.cs" />
     <Compile Include="Assets\Scripts\Runtime\UI\CameraRotate.cs" />
     <Compile Include="Assets\Scripts\Runtime\BigWorld\BigWorldCellConfig.cs" />
+    <Compile Include="Assets\Scripts\Runtime\BigWorld\EditorOnly\BigWorldBakeData.cs" />
     <Compile Include="Assets\Scripts\Runtime\UI\Joystick.cs" />
   </ItemGroup>
   <ItemGroup>

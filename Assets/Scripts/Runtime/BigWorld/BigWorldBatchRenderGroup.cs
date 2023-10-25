@@ -465,32 +465,36 @@ namespace BigCat.BigWorld
             /// <summary>
             /// 该Batch在BRG中的ID
             /// </summary>
-            public BatchID batchID;
-            
+            private BatchID m_batchID;
+            public BatchID batchID => m_batchID;
+
             /// <summary>
             /// 存储绘制Instance的数据的GBuffer
             /// </summary>
-            public readonly GraphicsBuffer instanceData;
-            
+            private readonly GraphicsBuffer m_instanceData;
+            public GraphicsBuffer instanceData => m_instanceData;
+
             /// <summary>
             /// 该Batch绘制的所有的Instance的数量
             /// </summary>
-            public readonly int instanceCount;
-            
+            private readonly int m_instanceCount;
+            public int instanceCount => m_instanceCount;
+
             /// <summary>
             /// Instance在所属的BatchGroup里的偏移
             /// </summary>
-            public readonly int instanceOffset;
-            
+            private readonly int m_instanceOffset;
+            public int instanceOffset => m_instanceOffset;
+
             /// <summary>
             /// 该Batch在整个绘制阶段所有Batch列表里的偏移
             /// </summary>
-            public int batchIndex;
+            public int batchIndex { get; set; }
             
             /// <summary>
             /// Instance在DrawCommands可见列表里的偏移
             /// </summary>
-            public int visibleOffset;
+            public int visibleOffset { get; set; }
 
             /// <summary>
             /// 用于存储每个Instance的Lightmap数据
@@ -500,8 +504,8 @@ namespace BigCat.BigWorld
             
             public Batch(int instanceOffset, int instanceCount, BigWorldBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
             {
-                this.instanceCount = instanceCount;
-                this.instanceOffset = instanceOffset;
+                m_instanceCount = instanceCount;
+                m_instanceOffset = instanceOffset;
                 systemBufferLightmapST = new NativeArray<float4>(instanceCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
                 systemBufferLightmapIndex = new NativeArray<float>(instanceCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
@@ -518,9 +522,9 @@ namespace BigCat.BigWorld
                 uint byteAddressLightmapScaleOffset = byteAddressLocalToWorld + (uint)(BigWorldBatchRenderGroup.sizeOfPackedMatrix * instanceCount);
                 uint byteAddressLightmapIndex = byteAddressLightmapScaleOffset + (uint)(BigWorldBatchRenderGroup.sizeOfFloat4 * instanceCount);
                 var buffSize = instanceCount * BigWorldBatchRenderGroup.sizeOfPerInstance + BigWorldBatchRenderGroup.sizeOfGBufferHead;
-                instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
-                instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
-                instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldBatchRenderGroup.sizeOfPackedMatrix), localToWorld.Length);
+                m_instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
+                m_instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
+                m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldBatchRenderGroup.sizeOfPackedMatrix), localToWorld.Length);
 
                 //metadata
                 var metadata = new NativeArray<MetadataValue>(3, Allocator.Temp);
@@ -529,14 +533,14 @@ namespace BigCat.BigWorld
                 metadata[2] = new MetadataValue { NameID = shaderPropertyLightmapIndex, Value = 0x80000000 | byteAddressLightmapIndex };
 
                 //add batch
-                batchID = brg.AddBatch(metadata, instanceData.bufferHandle);
+                m_batchID = brg.AddBatch(metadata, m_instanceData.bufferHandle);
             }
 
             public void Destroy(BatchRendererGroup brg)
             {
-                brg.RemoveBatch(batchID);
+                brg.RemoveBatch(m_batchID);
 
-                instanceData.Dispose();
+                m_instanceData.Dispose();
                 systemBufferLightmapST.Dispose();
                 systemBufferLightmapIndex.Dispose();
             }
@@ -545,15 +549,22 @@ namespace BigCat.BigWorld
         public class Lod
         {
             /// <summary>
+            /// 材质
+            /// </summary>
+            private Material m_material;
+
+            /// <summary>
             /// 材质在BRG中的注册ID
             /// </summary>
-            public BatchMaterialID materialID;
-            
+            private BatchMaterialID m_materialID;
+            public BatchMaterialID materialID => m_materialID;
+
             /// <summary>
             /// Mesh在BRG中的注册ID
             /// </summary>
-            public BatchMeshID meshID;
-            
+            private BatchMeshID m_meshID;
+            public BatchMeshID meshID => m_meshID;
+
             /// <summary>
             /// LOD
             /// </summary>
@@ -565,7 +576,8 @@ namespace BigCat.BigWorld
             /// <summary>
             /// Batch列表
             /// </summary>
-            public readonly Batch[] batches;
+            private readonly Batch[] m_batches;
+            public Batch[] batches => m_batches;
 
             /// <summary>
             /// 构造函数
@@ -579,24 +591,24 @@ namespace BigCat.BigWorld
                 var lodConfig = batchGroupConfig.lods[lodLevel];
                 lodMinDistance = lodConfig.lodMinDistance;
                 lodMaxDistance = lodConfig.lodMaxDistance;
-                
+
                 //创建并注册材质
-                var material = new Material(lodConfig.material);
-                material.SetTexture(shaderPropertyLightmaps, lightmaps);
-                material.EnableKeyword("LIGHTMAP_ON");
-                materialID = brg.RegisterMaterial(material);
-                
+                m_material = new Material(lodConfig.material);
+                m_material.SetTexture(shaderPropertyLightmaps, lightmaps);
+                m_material.EnableKeyword("LIGHTMAP_ON");
+                m_materialID = brg.RegisterMaterial(m_material);
+
                 //注册Mesh
-                meshID = brg.RegisterMesh(lodConfig.mesh);
+                m_meshID = brg.RegisterMesh(lodConfig.mesh);
                 
                 //创建Batch
                 var batchCount = (batchGroupConfig.count + BigWorldBatchRenderGroup.maxInstanceCountPerBatch - 1) / BigWorldBatchRenderGroup.maxInstanceCountPerBatch;
-                batches = new Batch[batchCount];
+                m_batches = new Batch[batchCount];
                 for (var i = 0; i < batchCount; ++i)
                 {
                     var instanceOffset = i * BigWorldBatchRenderGroup.maxInstanceCountPerBatch;
                     var instanceCount = Math.Min(BigWorldBatchRenderGroup.maxInstanceCountPerBatch, batchGroupConfig.count - instanceOffset);
-                    batches[i] = new Batch(instanceOffset, instanceCount, batchGroupConfig, brg);
+                    m_batches[i] = new Batch(instanceOffset, instanceCount, batchGroupConfig, brg);
                 }
             }
 
@@ -607,14 +619,17 @@ namespace BigCat.BigWorld
             public void Destroy(BatchRendererGroup brg)
             {
                 //销毁Batch
-                foreach (var batch in batches)
+                foreach (var batch in m_batches)
                 {
                     batch.Destroy(brg);
                 }
                 
                 //注销材质和Mesh
-                brg.UnregisterMaterial(materialID);
-                brg.UnregisterMesh(meshID);
+                brg.UnregisterMaterial(m_materialID);
+                brg.UnregisterMesh(m_meshID);
+
+                //销毁材质
+                UnityEngine.Object.Destroy(m_material);
             }
         }
         
