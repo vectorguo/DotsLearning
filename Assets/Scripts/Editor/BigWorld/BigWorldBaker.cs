@@ -70,13 +70,13 @@ namespace BigCatEditor.BigWorld
                 for (var index = 0; index < pair.Value.bakeGroups.Count; ++index)
                 {
                     var bakeGroup = pair.Value.bakeGroups[index];
-                    var batchGroupConfig = ScriptableObject.CreateInstance<BigWorldBatchGroupConfig>();
+                    var batchGroupConfig = ScriptableObject.CreateInstance<BigWorldObjectBatchGroupConfig>();
                     
                     //LOD
-                    batchGroupConfig.lods = new BigWorldBatchGroupConfig.Lod[bakeGroup.lods.Count];
+                    batchGroupConfig.lods = new BigWorldObjectBatchGroupConfig.Lod[bakeGroup.lods.Count];
                     for (var i = 0; i < bakeGroup.lods.Count; ++i)
                     {
-                        batchGroupConfig.lods[i] = new BigWorldBatchGroupConfig.Lod
+                        batchGroupConfig.lods[i] = new BigWorldObjectBatchGroupConfig.Lod
                         {
                             mesh = bakeGroup.lods[i].mesh,
                             material = bakeGroup.lods[i].material,

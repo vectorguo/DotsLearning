@@ -26,6 +26,11 @@ namespace BigCat.BigWorld
         public bool useJobForUpdate = true;
 
         /// <summary>
+        /// Terrain使用的shader
+        /// </summary>
+        public Shader terrainShader;
+
+        /// <summary>
         /// 玩家
         /// </summary>
         public GameObject player;
@@ -37,10 +42,16 @@ namespace BigCat.BigWorld
         public static BigWorldManager instance => s_instance;
         
         /// <summary>
-        /// 大世界RenderGroup
+        /// 大世界物体的BatchRenderGroup
         /// </summary>
-        private BigWorldBatchRenderGroup m_batchRenderGroup;
-        public BigWorldBatchRenderGroup BatchRenderGroup => m_batchRenderGroup;
+        private BigWorldObjectBatchRenderGroup m_objectBrg;
+        public BigWorldObjectBatchRenderGroup objectBrg => m_objectBrg;
+
+        /// <summary>
+        /// 大世界Terrain的BatchRenderGroup
+        /// </summary>
+        private BigWorldTerrainBatchRenderGroup m_terrainBrg;
+        public BigWorldTerrainBatchRenderGroup terrainBrg => m_terrainBrg;
         
         /// <summary>
         /// 256*256的Cell列表
@@ -57,12 +68,12 @@ namespace BigCat.BigWorld
 
         void Start()
         {
-            //创建RenderGroup
-            m_batchRenderGroup = gameObject.AddComponent<BigWorldBatchRenderGroup>();
-            m_batchRenderGroup.cullDistance = cullDistance;
-            m_batchRenderGroup.useJobForCulling = useJobForCulling;
-            m_batchRenderGroup.useJobForUpdate = useJobForUpdate;
-            m_batchRenderGroup.initialized = () =>
+            //创建场景对象的BatchRenderGroup
+            m_objectBrg = gameObject.AddComponent<BigWorldObjectBatchRenderGroup>();
+            m_objectBrg.cullDistance = cullDistance;
+            m_objectBrg.useJobForCulling = useJobForCulling;
+            m_objectBrg.useJobForUpdate = useJobForUpdate;
+            m_objectBrg.initialized = () =>
             {
                 //加载大世界配置
                 var bigWorldConfig = Resources.Load<BigWorldConfig>($"BigWorld/{worldName}/config/bigworld");
@@ -73,11 +84,22 @@ namespace BigCat.BigWorld
                     m_cells.Add(cell);
                 }
             };
+            
+            //创建Terrain的BatchRenderGroup
+            m_terrainBrg = gameObject.AddComponent<BigWorldTerrainBatchRenderGroup>();
+            m_terrainBrg.terrainShader = terrainShader;
+            m_terrainBrg.useJobForCulling = useJobForCulling;
+            m_terrainBrg.initialized = () =>
+            {
+                //测试，加载大世界Terrain
+                var terrainConfig = Resources.Load<BigWorldTerrainBatchGroupConfig>($"BigWorld/{worldName}/config/terrain");
+                m_terrainBrg.AddBatchGroup(terrainConfig);
+            };
         }
         
         void Update()
         {
-            m_batchRenderGroup.cullCenter = player.transform.position;
+            m_objectBrg.cullCenter = player.transform.position;
         }
 
         private void OnDestroy()

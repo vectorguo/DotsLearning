@@ -13,10 +13,12 @@ MonoBehaviour:
   m_Name: bigworld
   m_EditorClassIdentifier: 
   cellConfigs:
-  - {fileID: 11400000, guid: e7978b237640249f3af9602930927872, type: 2}
-  - {fileID: 11400000, guid: b7f95687ad05848b793990477918015a, type: 2}
-  - {fileID: 11400000, guid: 0012efca237bd45168b011f90ebea957, type: 2}
-  - {fileID: 11400000, guid: 00b90ace8a7ff44d9896fb646809af29, type: 2}
-  - {fileID: 11400000, guid: 26e28669d42694486a52c460f665882d, type: 2}
-  - {fileID: 11400000, guid: ba69031aa191541e69f6747a29e1f843, type: 2}
-  - {fileID: 11400000, guid: 0789e4c3f01ef4b4abf48861b065853e, type: 2}
+  - {fileID: 11400000, guid: 71676f554fa0245f7993960453b106d7, type: 2}
+  - {fileID: 11400000, guid: 807bcdbcd9962420cb5c5be32a027b1e, type: 2}
+  - {fileID: 11400000, guid: 997715bca3bd64ff0999b348c5e8bc3f, type: 2}
+  - {fileID: 11400000, guid: 4de67b6863a1d48cbb5bebc34c0fa03b, type: 2}
+  - {fileID: 11400000, guid: dffd75a1ec45841f9b67081fdce1884f, type: 2}
+  - {fileID: 11400000, guid: a9da99cc79f4c4fe2b2e064875297ea5, type: 2}
+  - {fileID: 11400000, guid: f2352119520f3495481f069fe37e2665, type: 2}
+  - {fileID: 11400000, guid: ba9f9479d1b514f7fa074ababdd02536, type: 2}
+  - {fileID: 11400000, guid: 42a33dea77244438999f55b20b88876c, type: 2}

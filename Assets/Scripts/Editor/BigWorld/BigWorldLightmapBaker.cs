@@ -26,6 +26,12 @@ namespace BigCatEditor.BigWorld
         /// </summary>
         private const int c_lqLightmapSize = 1024;
         private const int c_lqLightmapResolution = 3;
+
+        /// <summary>
+        /// Terrain的Lightmap参数
+        /// </summary>
+        private const int c_terrainLightmapSize = 512;
+        private const int c_terrainLightmapResolution = 15;
         
         public static void BakeLightmap(Dictionary<int, BigWorldBakerHelper.BigWorldBakeDataOfCell> sceneBakeData)
         {
@@ -160,19 +166,7 @@ namespace BigCatEditor.BigWorld
             AssetDatabase.StartAssetEditing();
             foreach (var path in lightmapCopyPaths)
             {
-                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                if (importer != null)
-                {
-                    importer.isReadable = true;
-                    importer.mipmapEnabled = false;
-
-                    var androidSetting = importer.GetPlatformTextureSettings("Android");
-                    androidSetting.overridden = true;
-                    androidSetting.format = TextureImporterFormat.ASTC_6x6;
-                    importer.SetPlatformTextureSettings(androidSetting);
-                    
-                    importer.SaveAndReimport();
-                }
+                SetLightmapSetting(path);
             }
             AssetDatabase.StopAssetEditing();
         }
@@ -220,29 +214,7 @@ namespace BigCatEditor.BigWorld
 
             //修改Lightmap设置
             AssetDatabase.StartAssetEditing();
-            var importer = AssetImporter.GetAtPath(lightmapCopyPath) as TextureImporter;
-            if (importer != null)
-            {
-                importer.isReadable = true;
-                importer.mipmapEnabled = false;
-
-                var androidSetting = importer.GetPlatformTextureSettings("Android");
-                androidSetting.overridden = true;
-                androidSetting.format = TextureImporterFormat.ASTC_6x6;
-                importer.SetPlatformTextureSettings(androidSetting);
-
-                var iosSetting = importer.GetPlatformTextureSettings("iPhone");
-                iosSetting.overridden = true;
-                iosSetting.format = TextureImporterFormat.ASTC_6x6;
-                importer.SetPlatformTextureSettings(iosSetting);
-
-                var pcSetting = importer.GetPlatformTextureSettings("Standalone");
-                pcSetting.overridden = true;
-                pcSetting.format = TextureImporterFormat.BC6H;
-                importer.SetPlatformTextureSettings(pcSetting);
-                    
-                importer.SaveAndReimport();
-            }
+            SetLightmapSetting(lightmapCopyPath);
             AssetDatabase.StopAssetEditing();
         }
         
@@ -336,6 +308,37 @@ namespace BigCatEditor.BigWorld
 
             terrain.shadowCastingMode = ShadowCastingMode.TwoSided;
             GameObjectUtility.SetStaticEditorFlags(terrain.gameObject, StaticEditorFlags.ContributeGI);
+        }
+        
+        /// <summary>
+        /// 设置Lightmap贴图的设置
+        /// </summary>
+        /// <param name="lightmapPath">lightmap路径，Assets开始</param>
+        private static void SetLightmapSetting(string lightmapPath)
+        {
+            var importer = AssetImporter.GetAtPath(lightmapPath) as TextureImporter;
+            if (importer != null)
+            {
+                importer.isReadable = true;
+                importer.mipmapEnabled = false;
+
+                var androidSetting = importer.GetPlatformTextureSettings("Android");
+                androidSetting.overridden = true;
+                androidSetting.format = TextureImporterFormat.ASTC_6x6;
+                importer.SetPlatformTextureSettings(androidSetting);
+
+                var iosSetting = importer.GetPlatformTextureSettings("iPhone");
+                iosSetting.overridden = true;
+                iosSetting.format = TextureImporterFormat.ASTC_6x6;
+                importer.SetPlatformTextureSettings(iosSetting);
+
+                var pcSetting = importer.GetPlatformTextureSettings("Standalone");
+                pcSetting.overridden = true;
+                pcSetting.format = TextureImporterFormat.DXT5;
+                importer.SetPlatformTextureSettings(pcSetting);
+                    
+                importer.SaveAndReimport();
+            }
         }
     }   
 }

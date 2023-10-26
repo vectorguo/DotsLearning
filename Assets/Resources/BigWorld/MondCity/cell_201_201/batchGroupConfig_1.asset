@@ -41,7 +41,7 @@ MonoBehaviour:
       x: 2.0380373
       y: 8.441234
       z: 2.0380409
-  hqLightmapIndices: 00000000
+  hqLightmapIndices: 02000000
   mqLightmapIndices: 09000000
   lqLightmapIndices: 0a000000
   hqLightmapScaleOffsets:
