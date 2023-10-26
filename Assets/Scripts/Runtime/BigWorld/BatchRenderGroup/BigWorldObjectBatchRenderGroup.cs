@@ -11,9 +11,8 @@ using UnityEngine.Rendering;
 namespace BigCat.BigWorld
 {
     [BurstCompile]
-    public class BigWorldBatchRenderGroup : MonoBehaviour
+    public class BigWorldObjectBatchRenderGroup : MonoBehaviour
     {
-        public const uint sizeOfMatrix = sizeof(float) * 4 * 4;
         public const uint sizeOfPackedMatrix = sizeof(float) * 4 * 3;
         public const uint sizeOfFloat = sizeof(float);
         public const uint sizeOfFloat4 = sizeof(float) * 4;
@@ -23,18 +22,14 @@ namespace BigCat.BigWorld
         /// <summary>
         /// 单例
         /// </summary>
-        private static BigWorldBatchRenderGroup s_instance;
-        public static BigWorldBatchRenderGroup instance => s_instance;
-        
-        /// <summary>
-        /// maxGraphicsBufferSize
-        /// </summary>
-        public static long maxGraphicsBufferSize = 32 * 1024;
+        private static BigWorldObjectBatchRenderGroup s_instance;
+        public static BigWorldObjectBatchRenderGroup instance => s_instance;
 
         /// <summary>
         /// 每个Batch的最大Instance数量
         /// </summary>
-        public static int maxInstanceCountPerBatch;
+        private static int s_maxInstanceCountPerBatch;
+        public static int maxInstanceCountPerBatch => s_maxInstanceCountPerBatch;
 
         /// <summary>
         /// 高精度Lightmap的显示距离
@@ -81,7 +76,7 @@ namespace BigCat.BigWorld
         /// <summary>
         /// Batch数据
         /// </summary>
-        private List<BigWorldBatchGroup> m_batchGroups;
+        private List<BigWorldObjectBatchGroup> m_batchGroups;
 
         /// <summary>
         /// 下一个BatchGroup的ID
@@ -96,13 +91,13 @@ namespace BigCat.BigWorld
         private void Start()
         {
             //初始化参数
-            maxGraphicsBufferSize = Math.Min(maxGraphicsBufferSize, SystemInfo.maxGraphicsBufferSize);
-            maxInstanceCountPerBatch = (int)((maxGraphicsBufferSize - sizeOfGBufferHead) / sizeOfPerInstance);
-            Debug.LogError("maxInstanceCountPerBatch = " + maxInstanceCountPerBatch);
+            s_maxInstanceCountPerBatch = (int)((BigWorldUtility.maxGraphicsBufferSize - sizeOfGBufferHead) / sizeOfPerInstance);
+            Debug.LogError("obj maxInstanceCountPerBatch = " + s_maxInstanceCountPerBatch);
 
             //创建BRG
             m_brg = new BatchRendererGroup(OnPerformCulling, IntPtr.Zero);
-            m_batchGroups = new List<BigWorldBatchGroup>();
+            m_batchGroups = new List<BigWorldObjectBatchGroup>();
+            m_nextBatchGroupID = 0;
             
             //调用初始化完成的回调
             initialized?.Invoke();
@@ -131,10 +126,10 @@ namespace BigCat.BigWorld
         /// <param name="batchGroupConfig">配置信息</param>
         /// <param name="lightmaps">该BatchGroup使用的Lightmap</param>
         /// <returns>BatchGroup的ID</returns>
-        public int AddBatchGroup(BigWorldBatchGroupConfig batchGroupConfig, Texture2DArray lightmaps)
+        public int AddBatchGroup(BigWorldObjectBatchGroupConfig batchGroupConfig, Texture2DArray lightmaps)
         {
             var id = ++m_nextBatchGroupID;
-            m_batchGroups.Add(new BigWorldBatchGroup(id, batchGroupConfig, lightmaps, m_brg));
+            m_batchGroups.Add(new BigWorldObjectBatchGroup(id, batchGroupConfig, lightmaps, m_brg));
             return id;
         }
 
@@ -265,16 +260,16 @@ namespace BigCat.BigWorld
             
             //DrawCommand
             var drawCommands = (BatchCullingOutputDrawCommands*)cullingOutput.drawCommands.GetUnsafePtr();
-            drawCommands->drawCommands = Malloc<BatchDrawCommand>((uint)batchCount);
+            drawCommands->drawCommands = BigWorldUtility.Malloc<BatchDrawCommand>((uint)batchCount);
             drawCommands->drawCommandCount = batchCount;
-            drawCommands->visibleInstances = Malloc<int>((uint)instanceCount);
+            drawCommands->visibleInstances = BigWorldUtility.Malloc<int>((uint)instanceCount);
             drawCommands->visibleInstanceCount = instanceCount;
             drawCommands->drawCommandPickingInstanceIDs = null;
             drawCommands->instanceSortingPositions = null;
             drawCommands->instanceSortingPositionFloatCount = 0;
 
             //DrawRange
-            drawCommands->drawRanges = Malloc<BatchDrawRange>(1);
+            drawCommands->drawRanges = BigWorldUtility.Malloc<BatchDrawRange>(1);
             drawCommands->drawRangeCount = 1;
             var drawRange = drawCommands->drawRanges;
             drawRange->drawCommandsBegin = 0;
@@ -384,14 +379,6 @@ namespace BigCat.BigWorld
                 return new JobHandle();
             }
         }
-        
-        /// <summary>
-        /// 分配内存
-        /// </summary>
-        public static unsafe T* Malloc<T>(uint count) where T : unmanaged
-        {
-            return (T*)UnsafeUtility.Malloc(UnsafeUtility.SizeOf<T>() * count, UnsafeUtility.AlignOf<T>(), Allocator.TempJob);
-        }
         #endregion
         
         #region Lightmap
@@ -442,24 +429,8 @@ namespace BigCat.BigWorld
         #endregion
     }
     
-    public class BigWorldBatchGroup
+    public class BigWorldObjectBatchGroup
     {
-        struct PackedMatrix
-        {
-            public float c0x; public float c0y; public float c0z;
-            public float c1x; public float c1y; public float c1z;
-            public float c2x; public float c2y; public float c2z;
-            public float c3x; public float c3y; public float c3z;
-
-            public PackedMatrix(Matrix4x4 m)
-            {
-                c0x = m.m00; c0y = m.m10; c0z = m.m20;
-                c1x = m.m01; c1y = m.m11; c1z = m.m21;
-                c2x = m.m02; c2y = m.m12; c2z = m.m22;
-                c3x = m.m03; c3y = m.m13; c3z = m.m23;
-            }
-        }
-        
         public class Batch
         {
             /// <summary>
@@ -502,7 +473,7 @@ namespace BigCat.BigWorld
             public NativeArray<float4> systemBufferLightmapST;
             public NativeArray<float> systemBufferLightmapIndex;
             
-            public Batch(int instanceOffset, int instanceCount, BigWorldBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
+            public Batch(int instanceOffset, int instanceCount, BigWorldObjectBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
             {
                 m_instanceCount = instanceCount;
                 m_instanceOffset = instanceOffset;
@@ -510,21 +481,21 @@ namespace BigCat.BigWorld
                 systemBufferLightmapIndex = new NativeArray<float>(instanceCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
 
                 //填充数据
-                var localToWorld = new PackedMatrix[instanceCount];
+                var localToWorld = new BigWorldUtility.PackedMatrix[instanceCount];
                 for (var i = 0; i < instanceCount; ++i)
                 {
                     var index = instanceOffset + i;
-                    localToWorld[i] = new PackedMatrix(Matrix4x4.TRS(batchGroupConfig.positions[index], batchGroupConfig.rotations[index], batchGroupConfig.scales[index]));
+                    localToWorld[i] = new BigWorldUtility.PackedMatrix(Matrix4x4.TRS(batchGroupConfig.positions[index], batchGroupConfig.rotations[index], batchGroupConfig.scales[index]));
                 }
 
                 //创建GBuffer
-                uint byteAddressLocalToWorld = BigWorldBatchRenderGroup.sizeOfGBufferHead;
-                uint byteAddressLightmapScaleOffset = byteAddressLocalToWorld + (uint)(BigWorldBatchRenderGroup.sizeOfPackedMatrix * instanceCount);
-                uint byteAddressLightmapIndex = byteAddressLightmapScaleOffset + (uint)(BigWorldBatchRenderGroup.sizeOfFloat4 * instanceCount);
-                var buffSize = instanceCount * BigWorldBatchRenderGroup.sizeOfPerInstance + BigWorldBatchRenderGroup.sizeOfGBufferHead;
+                uint byteAddressLocalToWorld = BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
+                uint byteAddressLightmapScaleOffset = byteAddressLocalToWorld + (uint)(BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix * instanceCount);
+                uint byteAddressLightmapIndex = byteAddressLightmapScaleOffset + (uint)(BigWorldObjectBatchRenderGroup.sizeOfFloat4 * instanceCount);
+                var buffSize = instanceCount * BigWorldObjectBatchRenderGroup.sizeOfPerInstance + BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
                 m_instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
                 m_instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
-                m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldBatchRenderGroup.sizeOfPackedMatrix), localToWorld.Length);
+                m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix), localToWorld.Length);
 
                 //metadata
                 var metadata = new NativeArray<MetadataValue>(3, Allocator.Temp);
@@ -586,7 +557,7 @@ namespace BigCat.BigWorld
             /// <param name="lodLevel">LOD等级</param>
             /// <param name="lightmaps">绘制时使用的Lightmap</param>
             /// <param name="brg">BRG</param>
-            public Lod(BigWorldBatchGroupConfig batchGroupConfig, int lodLevel, Texture2DArray lightmaps, BatchRendererGroup brg)
+            public Lod(BigWorldObjectBatchGroupConfig batchGroupConfig, int lodLevel, Texture2DArray lightmaps, BatchRendererGroup brg)
             {
                 var lodConfig = batchGroupConfig.lods[lodLevel];
                 lodMinDistance = lodConfig.lodMinDistance;
@@ -602,12 +573,12 @@ namespace BigCat.BigWorld
                 m_meshID = brg.RegisterMesh(lodConfig.mesh);
                 
                 //创建Batch
-                var batchCount = (batchGroupConfig.count + BigWorldBatchRenderGroup.maxInstanceCountPerBatch - 1) / BigWorldBatchRenderGroup.maxInstanceCountPerBatch;
+                var batchCount = (batchGroupConfig.count + BigWorldObjectBatchRenderGroup.maxInstanceCountPerBatch - 1) / BigWorldObjectBatchRenderGroup.maxInstanceCountPerBatch;
                 m_batches = new Batch[batchCount];
                 for (var i = 0; i < batchCount; ++i)
                 {
-                    var instanceOffset = i * BigWorldBatchRenderGroup.maxInstanceCountPerBatch;
-                    var instanceCount = Math.Min(BigWorldBatchRenderGroup.maxInstanceCountPerBatch, batchGroupConfig.count - instanceOffset);
+                    var instanceOffset = i * BigWorldObjectBatchRenderGroup.maxInstanceCountPerBatch;
+                    var instanceCount = Math.Min(BigWorldObjectBatchRenderGroup.maxInstanceCountPerBatch, batchGroupConfig.count - instanceOffset);
                     m_batches[i] = new Batch(instanceOffset, instanceCount, batchGroupConfig, brg);
                 }
             }
@@ -636,8 +607,8 @@ namespace BigCat.BigWorld
         /// <summary>
         /// ShaderProperty
         /// </summary>
-        private static readonly int shaderPropertyLightmaps = Shader.PropertyToID("_Lightmaps");
         private static readonly int shaderPropertyO2W = Shader.PropertyToID("unity_ObjectToWorld");
+        private static readonly int shaderPropertyLightmaps = Shader.PropertyToID("_Lightmaps");
         private static readonly int shaderPropertyLightmapST = Shader.PropertyToID("_LightmapST");
         private static readonly int shaderPropertyLightmapIndex = Shader.PropertyToID("_LightmapIndex");
         
@@ -692,7 +663,7 @@ namespace BigCat.BigWorld
         /// </summary>
         public NativeArray<float4> lqLightmapScaleOffsets;
 
-        public BigWorldBatchGroup(int id, BigWorldBatchGroupConfig batchGroupConfig, Texture2DArray lightmaps, BatchRendererGroup brg)
+        public BigWorldObjectBatchGroup(int id, BigWorldObjectBatchGroupConfig batchGroupConfig, Texture2DArray lightmaps, BatchRendererGroup brg)
         {
             m_id = id;
             

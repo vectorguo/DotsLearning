@@ -44,7 +44,7 @@ namespace BigCat.BigWorld
             {
                 foreach (var batchID in m_batchIDs)
                 {
-                    BigWorldBatchRenderGroup.instance.RemoveBatchGroup(batchID);
+                    BigWorldObjectBatchRenderGroup.instance.RemoveBatchGroup(batchID);
                 }
             }
         }
@@ -61,7 +61,7 @@ namespace BigCat.BigWorld
 #elif UNITY_IOS
             const TextureFormat format = TextureFormat.ASTC_6x6;
 #else
-            const TextureFormat format = TextureFormat.BC6H;
+            const TextureFormat format = TextureFormat.DXT5;
 #endif
             m_lightmaps = new Texture2DArray(1024, 1024, m_config.totalLightmapCount, format, false);
 
@@ -97,8 +97,8 @@ namespace BigCat.BigWorld
             m_batchIDs = new int[m_config.batchGroupCount];
             for (var i = 0; i < m_config.batchGroupCount; ++i)
             {
-                var batchGroupConfig = Resources.Load<BigWorldBatchGroupConfig>($"BigWorld/{worldName}/cell_{m_config.x}_{m_config.z}/batchGroupConfig_{i}");
-                m_batchIDs[i] = BigWorldBatchRenderGroup.instance.AddBatchGroup(batchGroupConfig, m_lightmaps);
+                var batchGroupConfig = Resources.Load<BigWorldObjectBatchGroupConfig>($"BigWorld/{worldName}/cell_{m_config.x}_{m_config.z}/batchGroupConfig_{i}");
+                m_batchIDs[i] = BigWorldObjectBatchRenderGroup.instance.AddBatchGroup(batchGroupConfig, m_lightmaps);
             }
         }
     }
