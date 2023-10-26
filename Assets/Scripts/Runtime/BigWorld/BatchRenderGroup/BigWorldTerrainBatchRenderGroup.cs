@@ -250,10 +250,10 @@ namespace BigCat.BigWorld
             var uv = new Vector2[4];
             var triangles = new int[6];
 
-            vertices[0] = new Vector3(0, 0, 1);
-            vertices[1] = new Vector3(1, 0, 1);
+            vertices[0] = new Vector3(0, 0, 256);
+            vertices[1] = new Vector3(256, 0, 256);
             vertices[2] = new Vector3(0, 0, 0);
-            vertices[3] = new Vector3(1, 0, 0);
+            vertices[3] = new Vector3(256, 0, 0);
             uv[0] = new Vector2(0, 1);
             uv[1] = new Vector2(1, 1);
             uv[2] = new Vector2(0, 0);
@@ -325,7 +325,6 @@ namespace BigCat.BigWorld
                 {
                     var index = instanceOffset + i;
                     localToWorld[i] = new BigWorldUtility.PackedMatrix(Matrix4x4.Translate(batchGroupConfig.positions[index]));
-                    // localToWorld[i] = new BigWorldUtility.PackedMatrix(Matrix4x4.TRS(batchGroupConfig.positions[index], Quaternion.identity, Vector3.one));
                 }
                 
                 //创建GBuffer
@@ -338,6 +337,9 @@ namespace BigCat.BigWorld
                 //metadata
                 var metadata = new NativeArray<MetadataValue>(1, Allocator.Temp);
                 metadata[0] = new MetadataValue { NameID = shaderPropertyO2W, Value = 0x80000000 | byteAddressLocalToWorld };
+
+                //add batch
+                m_batchID = brg.AddBatch(metadata, m_instanceData.bufferHandle);
             }
 
             public void Destroy(BatchRendererGroup brg)
