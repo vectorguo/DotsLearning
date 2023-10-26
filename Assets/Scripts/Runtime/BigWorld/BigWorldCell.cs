@@ -56,15 +56,7 @@ namespace BigCat.BigWorld
                 return;
             }
             
-#if UNITY_ANDROID
-            const TextureFormat format = TextureFormat.ASTC_6x6;
-#elif UNITY_IOS
-            const TextureFormat format = TextureFormat.ASTC_6x6;
-#else
-            const TextureFormat format = TextureFormat.DXT5;
-#endif
-            m_lightmaps = new Texture2DArray(1024, 1024, m_config.totalLightmapCount, format, false);
-
+            m_lightmaps = new Texture2DArray(1024, 1024, m_config.totalLightmapCount, BigWorldUtility.lightmapTextureFormat, false);
             for (var i = 0; i < m_config.hqLightmapCount; ++i)
             {
                 var lightmap = Resources.Load<Texture2D>($"BigWorld/{worldName}/cell_{m_config.x}_{m_config.z}/shq_lightmap_{i}");

@@ -1,3 +1,4 @@
+using BigCat.BigWorld;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -109,7 +110,7 @@ namespace BigCatEditor.BigWorld
         private static void PostBakeLightmapOfSceneObj(int cellIndex, BigWorldBakerHelper.BigWorldBakeDataOfCell bakeData, LightmapQuality quality)
         {
             //检查Lightmap输出路径
-            BigWorldBakerHelper.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
+            BigWorldUtility.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
             var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/cell_{cellX}_{cellZ}/";
             if (!Directory.Exists(folder))
             {
@@ -194,7 +195,7 @@ namespace BigCatEditor.BigWorld
         private static void PostBakeLightmapOfTerrain(int cellIndex, BigWorldBakerHelper.BigWorldBakeDataOfCell bakeData, LightmapQuality quality)
         {
             //检查Lightmap输出路径
-            BigWorldBakerHelper.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
+            BigWorldUtility.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
             var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/cell_{cellX}_{cellZ}/";
             if (!Directory.Exists(folder))
             {

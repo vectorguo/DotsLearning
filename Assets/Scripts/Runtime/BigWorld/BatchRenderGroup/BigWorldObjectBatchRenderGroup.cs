@@ -495,7 +495,7 @@ namespace BigCat.BigWorld
                 var buffSize = instanceCount * BigWorldObjectBatchRenderGroup.sizeOfPerInstance + BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
                 m_instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
                 m_instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
-                m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix), localToWorld.Length);
+                m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix), instanceCount);
 
                 //metadata
                 var metadata = new NativeArray<MetadataValue>(3, Allocator.Temp);
@@ -566,7 +566,7 @@ namespace BigCat.BigWorld
                 //创建并注册材质
                 m_material = new Material(lodConfig.material);
                 m_material.SetTexture(shaderPropertyLightmaps, lightmaps);
-                m_material.EnableKeyword("LIGHTMAP_ON");
+                m_material.EnableKeyword("DOTS_INSTANCING_ON");
                 m_materialID = brg.RegisterMaterial(m_material);
 
                 //注册Mesh

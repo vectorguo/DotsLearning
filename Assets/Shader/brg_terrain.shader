@@ -3,6 +3,8 @@ Shader "brg/brg_terrain"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _Lightmaps ("Lightmap", 2DArray) = "" {}
+        _LightmapIndex("LightmapIndex", Float) = 0
     }
     SubShader
     {
@@ -50,32 +52,32 @@ Shader "brg/brg_terrain"
                 float2 uv       : TEXCOORD0;
 
             #if defined(UNITY_DOTS_INSTANCING_ENABLED)
-                // half2  lmap	    : TEXCOORD1;
+                half2  lmap	    : TEXCOORD1;
 				uint instanceID : CUSTOM_INSTANCE_ID;
             #elif LIGHTMAP_ON
-                // half2  lmap	    : TEXCOORD1;
+                half2  lmap	    : TEXCOORD1;
             #endif
 };
 
             sampler2D _MainTex;
 
-            // TEXTURE2D_ARRAY(_Lightmaps);
-            // SAMPLER(sampler_Lightmaps);
+            TEXTURE2D_ARRAY(_Lightmaps);
+            SAMPLER(sampler_Lightmaps);
 
             CBUFFER_START(UnityPerMaterial)
             float4 _MainTex_ST;
             // float4 _LightmapST;
-            // float _LightmapIndex;
+            float _LightmapIndex;
             CBUFFER_END
 
         #if defined(UNITY_DOTS_INSTANCING_ENABLED)
-            // UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
-            //     UNITY_DOTS_INSTANCED_PROP(float4, _LightmapST)
-            //     UNITY_DOTS_INSTANCED_PROP(float , _LightmapIndex)
-            // UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
-            //
-            // #define _LightmapST     UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _LightmapST)
-            // #define _LightmapIndex  UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float , _LightmapIndex)
+            UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
+                //UNITY_DOTS_INSTANCED_PROP(float4, _LightmapST)
+                UNITY_DOTS_INSTANCED_PROP(float , _LightmapIndex)
+            UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
+            
+            //#define _LightmapST     UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _LightmapST)
+            #define _LightmapIndex  UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float , _LightmapIndex)
         #endif
 
             v2f vert (a2v v)
@@ -88,9 +90,11 @@ Shader "brg/brg_terrain"
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 
             #if defined(UNITY_DOTS_INSTANCING_ENABLED)
-                // o.lmap = v.uv2.xy * _LightmapST.xy + _LightmapST.zw;
+                //o.lmap = v.uv2.xy * _LightmapST.xy + _LightmapST.zw;
+                o.lmap = v.uv2.xy;
             #elif LIGHTMAP_ON
-                // o.lmap = v.uv2.xy * unity_LightmapST.xy + unity_LightmapST.zw;
+                //o.lmap = v.uv2.xy * unity_LightmapST.xy + unity_LightmapST.zw;
+                o.lmap = v.uv2.xy;
             #endif
                 return o;
             }
@@ -101,15 +105,16 @@ Shader "brg/brg_terrain"
 
                 half4 col = tex2D(_MainTex, i.uv);
 
-            // #if defined(UNITY_DOTS_INSTANCING_ENABLED)
-            //     half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
-            //     half3 lm = DecodeLightmap(SAMPLE_TEXTURE2D_ARRAY(_Lightmaps, sampler_Lightmaps, i.lmap, (int)_LightmapIndex), decodeInstructions);
-            //     col.rgb *= lm;
-            // #elif LIGHTMAP_ON
-            //     half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
-            //     half3 lm = DecodeLightmap(SAMPLE_TEXTURE2D(unity_Lightmap, samplerunity_Lightmap, i.lmap), decodeInstructions);
-            //     col.rgb *= lm;
-            // #endif
+            #if defined(UNITY_DOTS_INSTANCING_ENABLED)
+                half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
+                half3 lm = DecodeLightmap(SAMPLE_TEXTURE2D_ARRAY(_Lightmaps, sampler_Lightmaps, i.lmap, (int)_LightmapIndex), decodeInstructions);
+                return half4(lm, 1);
+                col.rgb *= lm;
+            #elif LIGHTMAP_ON
+                half4 decodeInstructions = half4(LIGHTMAP_HDR_MULTIPLIER, LIGHTMAP_HDR_EXPONENT, 0.0h, 0.0h);
+                half3 lm = DecodeLightmap(SAMPLE_TEXTURE2D(unity_Lightmap, samplerunity_Lightmap, i.lmap), decodeInstructions);
+                col.rgb *= lm;
+            #endif
 
                 return col;
             }

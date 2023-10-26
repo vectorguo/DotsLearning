@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using BigCat.BigWorld;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -18,71 +18,6 @@ namespace BigCatEditor.BigWorld
     
     public static class BigWorldBakerHelper
     {
-        /// <summary>
-        /// 格子大小
-        /// </summary>
-        public const int cellSize = 256;
-        
-        /// <summary>
-        /// 每一行最多有多少个
-        /// </summary>
-        private const int c_cellRowCount = 1024;
-
-        /// <summary>
-        /// 大世界原点的格子偏移
-        /// </summary>
-        public const int bigWorldOriginCellOffset = 50;
-        
-        /// <summary>
-        /// 大世界原点偏移
-        /// </summary>
-        public const float bigWorldOriginOffset = -1024 * bigWorldOriginCellOffset;
-        
-        #region 坐标转换
-        /// <summary>
-        /// 获取基于大世界原点的格子坐标
-        /// </summary>
-        /// <param name="worldPosition">世界坐标</param>
-        /// <returns>基于大世界原点的格子坐标</returns>
-        public static int GetCellCoordinateBaseOri(float worldPosition)
-        {
-            return (int)((worldPosition - bigWorldOriginOffset) / cellSize);
-        }
-
-        /// <summary>
-        /// 获取基于Zero的格子坐标
-        /// </summary>
-        /// <param name="worldPosition">世界坐标</param>
-        /// <returns>基于大Zero的格子坐标</returns>
-        public static int GetCoordinateBaseZero(float worldPosition)
-        {
-            return GetCellCoordinateBaseOri(worldPosition) - (1024 / cellSize) * bigWorldOriginCellOffset;
-        }
-
-        /// <summary>
-        /// 获取Cell的索引
-        /// </summary>
-        /// <param name="cellX">Cell的X轴坐标</param>
-        /// <param name="cellZ">Cell的Z轴坐标</param>
-        /// <returns></returns>
-        public static int GetCellIndex(int cellX, int cellZ)
-        {
-            return cellZ * c_cellRowCount + cellX;
-        }
-
-        /// <summary>
-        /// 将Cell所以转换成对应的坐标
-        /// </summary>
-        /// <param name="cellIndex">Cell索引</param>
-        /// <param name="cellX">Cell的X轴坐标</param>
-        /// <param name="cellZ">Cell的Z轴卓表</param>
-        public static void GetCellCoordinate(int cellIndex, out int cellX, out int cellZ)
-        {
-            cellX = cellIndex % c_cellRowCount;
-            cellZ = cellIndex / c_cellRowCount;
-        }
-        #endregion
-
         #region 生成对象的烘焙数据
         /// <summary>
         /// 生成场景对象的烘焙数据
@@ -114,9 +49,9 @@ namespace BigCatEditor.BigWorld
                     
                     //计算Cell坐标
                     var position = terrain.transform.position;
-                    bakeData.cellX = GetCellCoordinateBaseOri(position.x);
-                    bakeData.cellZ = GetCellCoordinateBaseOri(position.z);
-                    bakeData.cellIndex = GetCellIndex(bakeData.cellX, bakeData.cellZ);
+                    bakeData.cellX = BigWorldUtility.GetCellCoordinateBaseOri(position.x);
+                    bakeData.cellZ = BigWorldUtility.GetCellCoordinateBaseOri(position.z);
+                    bakeData.cellIndex = BigWorldUtility.GetCellIndex(bakeData.cellX, bakeData.cellZ);
                 }
             }
         }
@@ -168,9 +103,9 @@ namespace BigCatEditor.BigWorld
             
             //计算Cell坐标
             var position = go.transform.position;
-            bakeData.cellX = GetCellCoordinateBaseOri(position.x);
-            bakeData.cellZ = GetCellCoordinateBaseOri(position.z);
-            bakeData.cellIndex = GetCellIndex(bakeData.cellX, bakeData.cellZ);
+            bakeData.cellX = BigWorldUtility.GetCellCoordinateBaseOri(position.x);
+            bakeData.cellZ = BigWorldUtility.GetCellCoordinateBaseOri(position.z);
+            bakeData.cellIndex = BigWorldUtility.GetCellIndex(bakeData.cellX, bakeData.cellZ);
             
             //处理LODGroup
             bakeData.lodGroup = lodGroup;

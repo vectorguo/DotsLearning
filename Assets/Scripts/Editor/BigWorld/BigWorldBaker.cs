@@ -1,7 +1,7 @@
+using BigCat.BigWorld;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using BigCat.BigWorld;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -65,7 +65,7 @@ namespace BigCatEditor.BigWorld
         {
             foreach (var pair in bakeGroupsMap)
             {
-                BigWorldBakerHelper.GetCellCoordinate(pair.Key, out var cellX, out var cellZ);
+                BigWorldUtility.GetCellCoordinate(pair.Key, out var cellX, out var cellZ);
 
                 for (var index = 0; index < pair.Value.bakeGroups.Count; ++index)
                 {
