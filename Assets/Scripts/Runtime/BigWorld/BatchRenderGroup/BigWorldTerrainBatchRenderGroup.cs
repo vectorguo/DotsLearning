@@ -35,16 +35,16 @@ namespace BigCat.BigWorld
         /// Terrain使用的Shader
         /// </summary>
         public Shader terrainShader { get; set; }
-        
+
         /// <summary>
-        /// 是否使用Job才裁剪
+        /// 是否初始化完成
         /// </summary>
-        public bool useJobForCulling { get; set; }
-        
+        public bool isInitialized { get; private set; }
+
         /// <summary>
         /// 初始化完成的回调函数
         /// </summary>
-        public Action initialized { get; set; }
+        public Action onInitialized { get; set; }
 
         /// <summary>
         /// brg
@@ -92,7 +92,8 @@ namespace BigCat.BigWorld
             m_meshID = m_brg.RegisterMesh(m_mesh);
 
             //调用初始化完成的回调
-            initialized?.Invoke();
+            isInitialized = true;
+            onInitialized?.Invoke();
         }
 
         private void Update()
@@ -391,7 +392,7 @@ namespace BigCat.BigWorld
             m_id = id;
 
             //Lightmap
-            m_lightmaps = new Texture2DArray(1024, 1024, batchGroupConfig.count, BigWorldUtility.lightmapTextureFormat, false);
+            m_lightmaps = new Texture2DArray(2048, 2048, batchGroupConfig.count, BigWorldUtility.lightmapTextureFormat, false);
 
             //创建Job所需的NativeArray
             positions = new NativeArray<float3>(batchGroupConfig.count, Allocator.Persistent);
@@ -400,8 +401,8 @@ namespace BigCat.BigWorld
                 var position = batchGroupConfig.positions[i];
                 positions[i] = position;
 
-                var cellX = BigWorldUtility.GetCellCoordinateBaseOri(position.x);
-                var cellZ = BigWorldUtility.GetCellCoordinateBaseOri(position.z);
+                var cellX = BigWorldUtility.GetBlockCoordinate(position.x);
+                var cellZ = BigWorldUtility.GetBlockCoordinate(position.z);
                 var lightmap = Resources.Load<Texture2D>($"BigWorld/MondCity/cell_{cellX}_{cellZ}/tmq_lightmap");
                 m_lightmaps.SetPixelData(lightmap.GetPixelData<byte>(0), 0, i);
             }

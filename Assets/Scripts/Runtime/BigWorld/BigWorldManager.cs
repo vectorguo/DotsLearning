@@ -40,7 +40,13 @@ namespace BigCat.BigWorld
         /// </summary>
         private static BigWorldManager s_instance;
         public static BigWorldManager instance => s_instance;
-        
+
+        /// <summary>
+        /// 大世界配置
+        /// </summary>
+        private BigWorldConfig m_config;
+        public BigWorldConfig config => m_config;
+
         /// <summary>
         /// 大世界物体的BatchRenderGroup
         /// </summary>
@@ -48,15 +54,15 @@ namespace BigCat.BigWorld
         public BigWorldObjectBatchRenderGroup objectBrg => m_objectBrg;
 
         /// <summary>
-        /// 大世界Terrain的BatchRenderGroup
+        /// Terrain管理器
         /// </summary>
-        private BigWorldTerrainBatchRenderGroup m_terrainBrg;
-        public BigWorldTerrainBatchRenderGroup terrainBrg => m_terrainBrg;
+        private BigWorldTerrainManager m_terrainMgr;
+        public BigWorldTerrainManager terrainMgr => m_terrainMgr;
         
         /// <summary>
-        /// 256*256的Cell列表
+        /// 已经创建的Chunk的列表
         /// </summary>
-        private readonly List<BigWorldCell> m_cells = new List<BigWorldCell>();
+        private readonly List<BigWorldChunk> m_chunks = new List<BigWorldChunk>();
 
         private void Awake()
         {
@@ -73,44 +79,71 @@ namespace BigCat.BigWorld
             m_objectBrg.cullDistance = cullDistance;
             m_objectBrg.useJobForCulling = useJobForCulling;
             m_objectBrg.useJobForUpdate = useJobForUpdate;
-            m_objectBrg.initialized = () =>
-            {
-                //加载大世界配置
-                var bigWorldConfig = Resources.Load<BigWorldConfig>($"BigWorld/{worldName}/config/bigworld");
-                foreach (var cellConfig in bigWorldConfig.cellConfigs)
-                {
-                    var cell = new BigWorldCell();
-                    cell.Initialize(cellConfig, worldName);
-                    m_cells.Add(cell);
-                }
-            };
-            
-            //创建Terrain的BatchRenderGroup
-            m_terrainBrg = gameObject.AddComponent<BigWorldTerrainBatchRenderGroup>();
-            m_terrainBrg.terrainShader = terrainShader;
-            m_terrainBrg.useJobForCulling = useJobForCulling;
-            m_terrainBrg.initialized = () =>
-            {
-                //测试，加载大世界Terrain
-                var terrainConfig = Resources.Load<BigWorldTerrainBatchGroupConfig>($"BigWorld/{worldName}/config/terrain");
-                m_terrainBrg.AddBatchGroup(terrainConfig);
-            };
+            m_objectBrg.onInitialized = Initialize;
+
+            //创建TerrainManager
+            m_terrainMgr = gameObject.AddComponent<BigWorldTerrainManager>();
+            m_terrainMgr.onInitialized = Initialize;
         }
         
         void Update()
         {
             m_objectBrg.cullCenter = player.transform.position;
+
+            //更新Chunk
+            foreach (var chunk in m_chunks)
+            {
+                chunk.Update();
+            }
         }
 
         private void OnDestroy()
         {
-            foreach (var cell in m_cells)
+            //销毁所有Chunk
+            foreach (var chunk in m_chunks)
             {
-                cell.Destroy();
+                chunk.Destroy();
             }
-            m_cells.Clear();
-            
+            m_chunks.Clear();
+
+            //释放config
+            Resources.UnloadAsset(m_config);
+            m_config = null;
+
+            //清空单例
             s_instance = null;
+        }
+
+        /// <summary>
+        /// 初始化
+        /// </summary>
+        private void Initialize()
+        {
+            if (!m_objectBrg.isInitialized || !m_terrainMgr.isInitialized)
+            {
+                return;
+            }
+
+            //加载大世界配置
+            m_config = Resources.Load<BigWorldConfig>($"BigWorld/{worldName}/bigworld");
+
+            //加载Player周围的Chunk
+            var playerPosition = player.transform.position;
+            var playerChunkX = BigWorldUtility.GetChunkCoordinate(playerPosition.x);
+            var playerChunkZ = BigWorldUtility.GetChunkCoordinate(playerPosition.z);
+            for (var m = -1; m <= 1; ++m)
+            {
+                for (var n = -1; n <= 1; ++n)
+                {
+                    var chunkX = playerChunkX + m;
+                    var chunkZ = playerChunkZ + n;
+                    var chunkIndex = BigWorldUtility.GetCellIndex(chunkX, chunkZ);
+                    if (m_config.chunkIndices.Contains(chunkIndex))
+                    {
+                        m_chunks.Add(new BigWorldChunk(chunkIndex));
+                    }
+                }
+            }
         }
     }
 }

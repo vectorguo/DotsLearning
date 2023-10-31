@@ -1,5 +1,6 @@
 using BigCat.BigWorld;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -49,9 +50,9 @@ namespace BigCatEditor.BigWorld
                     
                     //计算Cell坐标
                     var position = terrain.transform.position;
-                    bakeData.cellX = BigWorldUtility.GetCellCoordinateBaseOri(position.x);
-                    bakeData.cellZ = BigWorldUtility.GetCellCoordinateBaseOri(position.z);
-                    bakeData.cellIndex = BigWorldUtility.GetCellIndex(bakeData.cellX, bakeData.cellZ);
+                    bakeData.blockX = BigWorldUtility.GetBlockCoordinate(position.x);
+                    bakeData.blockZ = BigWorldUtility.GetBlockCoordinate(position.z);
+                    bakeData.blockIndex = BigWorldUtility.GetCellIndex(bakeData.blockX, bakeData.blockZ);
                 }
             }
         }
@@ -103,29 +104,15 @@ namespace BigCatEditor.BigWorld
             
             //计算Cell坐标
             var position = go.transform.position;
-            bakeData.cellX = BigWorldUtility.GetCellCoordinateBaseOri(position.x);
-            bakeData.cellZ = BigWorldUtility.GetCellCoordinateBaseOri(position.z);
-            bakeData.cellIndex = BigWorldUtility.GetCellIndex(bakeData.cellX, bakeData.cellZ);
+            bakeData.blockX = BigWorldUtility.GetBlockCoordinate(position.x);
+            bakeData.blockZ = BigWorldUtility.GetBlockCoordinate(position.z);
+            bakeData.blockIndex = BigWorldUtility.GetCellIndex(bakeData.blockX, bakeData.blockZ);
             
             //处理LODGroup
             bakeData.lodGroup = lodGroup;
             if (lodGroup == null)
             {
                 bakeData.renderer = go.GetComponent<MeshRenderer>();
-            }
-            else
-            {
-                //暂时默认不同LODLevel的Renderer是一一对应的
-                bakeData.renderers = new MeshRenderer[bakeData.lodGroup.lodCount][];
-                for (var lodLevel = 0; lodLevel < bakeData.lodGroup.lodCount; ++lodLevel)
-                {
-                    var lod = bakeData.lodGroup.GetLODs()[lodLevel];
-                    bakeData.renderers[lodLevel] = new MeshRenderer[lod.renderers.Length];
-                    for (var i = 0; i < lod.renderers.Length; ++i)
-                    {
-                        bakeData.renderers[lodLevel][i] = (MeshRenderer)lod.renderers[i];
-                    }
-                }
             }
         }
 
@@ -291,10 +278,10 @@ namespace BigCatEditor.BigWorld
             var bakeObjDataComponents = root.GetComponentsInChildren<BigWorldObjBakeData>();
             foreach (var bakeData in bakeObjDataComponents)
             {
-                if (!bakeInfos.TryGetValue(bakeData.cellIndex, out var bakeInfo))
+                if (!bakeInfos.TryGetValue(bakeData.blockIndex, out var bakeInfo))
                 {
                     bakeInfo = new BigWorldBakeDataOfCell();
-                    bakeInfos.Add(bakeData.cellIndex, bakeInfo);
+                    bakeInfos.Add(bakeData.blockIndex, bakeInfo);
                 }
 
                 var targetBakeGroups = FindBakeGroups(bakeData, bakeInfo.bakeGroups);
@@ -307,10 +294,10 @@ namespace BigCatEditor.BigWorld
             var bakeTerrainDataComponents = root.GetComponentsInChildren<BigWorldTerrainBakeData>();
             foreach (var bakeData in bakeTerrainDataComponents)
             {
-                if (!bakeInfos.TryGetValue(bakeData.cellIndex, out var bakeInfo))
+                if (!bakeInfos.TryGetValue(bakeData.blockIndex, out var bakeInfo))
                 {
                     bakeInfo = new BigWorldBakeDataOfCell();
-                    bakeInfos.Add(bakeData.cellIndex, bakeInfo);
+                    bakeInfos.Add(bakeData.blockIndex, bakeInfo);
                 }
                 bakeInfo.terrain = bakeData.terrain;
             }
@@ -334,7 +321,7 @@ namespace BigCatEditor.BigWorld
                 }
                 
                 //创建新的BakeGroup
-                var newBakeGroup = new BigWorldBakeGroup(objBakeData.cellIndex, material, mesh);
+                var newBakeGroup = new BigWorldBakeGroup(objBakeData.blockIndex, material, mesh);
                 bakeGroups.Add(newBakeGroup);
                 return new[] { newBakeGroup };
             }
@@ -375,7 +362,7 @@ namespace BigCatEditor.BigWorld
                     if (targetBakeGroups[i] == null)
                     {
                         //创建新的BakeGroup
-                        var newBakeGroup = new BigWorldBakeGroup(objBakeData.cellIndex, objBakeData, i);
+                        var newBakeGroup = new BigWorldBakeGroup(objBakeData.blockIndex, objBakeData, i);
                         bakeGroups.Add(newBakeGroup);
                         targetBakeGroups[i] = newBakeGroup;
                     }
@@ -393,5 +380,44 @@ namespace BigCatEditor.BigWorld
             mesh = meshFilter.sharedMesh;
         }
         #endregion
-    }   
+
+        #region Utility
+        /// <summary>
+        /// 复制文件夹
+        /// </summary>
+        public static bool CopyFolder(string sourceFolder, string destFolder)
+        {
+            try
+            {
+                //如果目标路径不存在,则创建目标路径
+                if (!Directory.Exists(destFolder))
+                {
+                    Directory.CreateDirectory(destFolder);
+
+                }
+                //得到原文件根目录下的所有文件
+                string[] files = Directory.GetFiles(sourceFolder);
+                foreach (string file in files)
+                {
+                    string name = Path.GetFileName(file);
+                    string dest = Path.Combine(destFolder, name);
+                    File.Copy(file, dest, true);//复制文件
+                }
+                //得到原文件根目录下的所有文件夹
+                string[] folders = Directory.GetDirectories(sourceFolder);
+                foreach (string folder in folders)
+                {
+                    string name = Path.GetFileName(folder);
+                    string dest = Path.Combine(destFolder, name);
+                    CopyFolder(folder, dest);//构建目标路径,递归复制文件
+                }
+                return true;
+            }
+            catch (System.Exception _)
+            {
+                return false;
+            }
+        }
+        #endregion
+    }
 }

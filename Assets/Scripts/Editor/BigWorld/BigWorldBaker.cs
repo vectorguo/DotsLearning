@@ -18,20 +18,17 @@ namespace BigCatEditor.BigWorld
         private static string s_worldName = "MondCity";
         public static string worldName => s_worldName;
 
+        /// <summary>
+        /// 烘焙输出目录
+        /// </summary>
+        public static string bakeTempOutputPath => $"{Application.dataPath.Replace("Assets", string.Empty)}BigWorldOutput/{s_worldName}";
+
         [MenuItem("BigWorld/Bake")]
         public static void Bake()
         {
             //删除旧资源
-            var path = $"Assets/Resources/BigWorld/{s_worldName}";
-            if (Directory.Exists(path))
-            {
-                Directory.Delete(path, true);
-            }
-            Directory.CreateDirectory(path);
-            
-            //刷新
-            AssetDatabase.Refresh();
-            
+            ClearOldResources();
+
             //生成烘焙数据
             var scene = SceneManager.GetActiveScene();
             foreach (var go in scene.GetRootGameObjects())
@@ -42,13 +39,14 @@ namespace BigCatEditor.BigWorld
                 }
             }
             EditorSceneManager.MarkSceneDirty(scene);
-            
+
             //获取烘焙组
             var sceneBakeData = BigWorldBakerHelper.GetSceneBakeData();
-            
+
             //烘焙Lightmap
             BigWorldLightmapBaker.BakeLightmap(sceneBakeData);
-            
+            BigWorldLightmapBaker.PostprocessLightmap();
+
             //创建BatchGroup配置
             CreateBatchGroupConfigs(sceneBakeData);
 
@@ -65,13 +63,13 @@ namespace BigCatEditor.BigWorld
         {
             foreach (var pair in bakeGroupsMap)
             {
-                BigWorldUtility.GetCellCoordinate(pair.Key, out var cellX, out var cellZ);
+                BigWorldUtility.GetCellCoordinates(pair.Key, out var cellX, out var cellZ);
 
                 for (var index = 0; index < pair.Value.bakeGroups.Count; ++index)
                 {
                     var bakeGroup = pair.Value.bakeGroups[index];
                     var batchGroupConfig = ScriptableObject.CreateInstance<BigWorldObjectBatchGroupConfig>();
-                    
+
                     //LOD
                     batchGroupConfig.lods = new BigWorldObjectBatchGroupConfig.Lod[bakeGroup.lods.Count];
                     for (var i = 0; i < bakeGroup.lods.Count; ++i)
@@ -87,12 +85,12 @@ namespace BigCatEditor.BigWorld
                     batchGroupConfig.lods[bakeGroup.lods.Count - 1].lodMaxDistance = -1.0f;
 
                     //计算Lightmap偏移
-                    var folder = $"Assets/Resources/BigWorld/{s_worldName}/cell_{cellX}_{cellZ}";
+                    var folder = $"Assets/Resources/BigWorld/{s_worldName}/block/block_{cellX}_{cellZ}";
                     var hqLightmaps = Directory.GetFiles(folder, "shq_lightmap_*.exr", SearchOption.TopDirectoryOnly);
                     var hqLightmapCount = hqLightmaps.Length;
                     var mqLightmaps = Directory.GetFiles(folder, "smq_lightmap_*.exr", SearchOption.TopDirectoryOnly);
                     var mqLightmapCount = mqLightmaps.Length;
-                    
+
                     batchGroupConfig.count = bakeGroup.items.Count;
                     batchGroupConfig.positions = new List<Vector3>();
                     batchGroupConfig.rotations = new List<Quaternion>();
@@ -127,45 +125,95 @@ namespace BigCatEditor.BigWorld
         #region BigWorldConfig
         private static void CreateBigWorldConfigs()
         {
-            var configPath = $"Assets/Resources/BigWorld/{s_worldName}/config";
-            if (Directory.Exists(configPath))
-            {
-                Directory.Delete(configPath, true);
-            }
-            Directory.CreateDirectory(configPath);
-            
-            var bigWorldConfig = ScriptableObject.CreateInstance<BigWorldConfig>();
-            
-            var cellFolders = Directory.GetDirectories($"Assets/Resources/BigWorld/{s_worldName}", "cell_*", SearchOption.TopDirectoryOnly);
-            foreach (var folder in cellFolders)
+            var config = ScriptableObject.CreateInstance<BigWorldConfig>();
+            var chunkConfigs = new Dictionary<int, BigWorldChunkConfig>();
+
+            var blockFolders = Directory.GetDirectories($"Assets/Resources/BigWorld/{s_worldName}/block", "block_*", SearchOption.TopDirectoryOnly);
+            foreach (var folder in blockFolders)
             {
                 var folderName = Path.GetFileNameWithoutExtension(folder);
                 var folderSs = folderName.Split('_');
-                var cellX = Convert.ToInt32(folderSs[1]);
-                var cellZ = Convert.ToInt32(folderSs[2]);
-                var cellConfig = ScriptableObject.CreateInstance<BigWorldCellConfig>();
-                cellConfig.x = cellX;
-                cellConfig.z = cellZ;
-                bigWorldConfig.cellConfigs.Add(cellConfig);
-                
+                var blockX = Convert.ToInt32(folderSs[1]);
+                var blockZ = Convert.ToInt32(folderSs[2]);
+                var blockIndex = BigWorldUtility.GetCellIndex(blockX, blockZ);
+                var blockConfig = ScriptableObject.CreateInstance<BigWorldBlockConfig>();
+
                 //计算BatchGroup数量
                 var batchGroupConfigs = Directory.GetFiles(folder, "batchGroupConfig_*.asset", SearchOption.TopDirectoryOnly);
-                cellConfig.batchGroupCount = batchGroupConfigs.Length;
-                
+                blockConfig.batchGroupCount = batchGroupConfigs.Length;
+
                 //计算Lightmap数量
                 var hqLightmaps = Directory.GetFiles(folder, "shq_lightmap_*.exr", SearchOption.TopDirectoryOnly);
-                cellConfig.hqLightmapCount = hqLightmaps.Length;
+                blockConfig.hqLightmapCount = hqLightmaps.Length;
                 var mqLightmaps = Directory.GetFiles(folder, "smq_lightmap_*.exr", SearchOption.TopDirectoryOnly);
-                cellConfig.mqLightmapCount = mqLightmaps.Length;
+                blockConfig.mqLightmapCount = mqLightmaps.Length;
                 var lqLightmaps = Directory.GetFiles(folder, "slq_lightmap_*.exr", SearchOption.TopDirectoryOnly);
-                cellConfig.lqLightmapCount = lqLightmaps.Length;
-                
-                //保存配置
-                AssetDatabase.CreateAsset(cellConfig, $"{configPath}/cell_{cellX}_{cellZ}.asset");
+                blockConfig.lqLightmapCount = lqLightmaps.Length;
+
+                //保存Block配置
+                AssetDatabase.CreateAsset(blockConfig, $"{folder}/config.asset");
+
+                var chunkX = blockX / 4;
+                var chunkZ = blockZ / 4;
+                var chunkIndex = BigWorldUtility.GetCellIndex(chunkX, chunkZ);
+                if (chunkConfigs.TryGetValue(chunkIndex, out var chunkConfig))
+                {
+                    chunkConfig.blockIndices.Add(blockIndex);
+                }
+                else
+                {
+                    chunkConfigs.Add(chunkIndex, new BigWorldChunkConfig
+                    {
+                        blockIndices = new List<int> { blockIndex }
+                    });
+                }
             }
-            
-            AssetDatabase.CreateAsset(bigWorldConfig, $"{configPath}/bigworld.asset");
+
+            //保存Chunk配置
+            foreach (var pair in chunkConfigs)
+            {
+                BigWorldUtility.GetCellCoordinates(pair.Key, out var chunkX, out var chunkZ);
+
+                //检查保存路径
+                var chunkConfigPath = $"Assets/Resources/BigWorld/{s_worldName}/chunk/chunk_{chunkX}_{chunkZ}";
+                if (Directory.Exists(chunkConfigPath))
+                {
+                    Directory.Delete(chunkConfigPath, true);
+                }
+                Directory.CreateDirectory(chunkConfigPath);
+
+                //保存配置
+                AssetDatabase.CreateAsset(pair.Value, $"{chunkConfigPath}/config.asset");
+            }
+
+            //保存大世界配置
+            config.chunkIndices = new List<int>(chunkConfigs.Keys);
+            AssetDatabase.CreateAsset(config, $"Assets/Resources/BigWorld/{s_worldName}/bigworld.asset");
         }
         #endregion
-    }  
+
+        #region Utility
+        /// <summary>
+        /// 清理旧资源
+        /// </summary>
+        private static void ClearOldResources()
+        {
+            var path1 = $"Assets/Resources/BigWorld/{s_worldName}";
+            if (Directory.Exists(path1))
+            {
+                Directory.Delete(path1, true);
+            }
+            Directory.CreateDirectory(path1);
+
+            if (Directory.Exists(bakeTempOutputPath))
+            {
+                Directory.Delete(bakeTempOutputPath, true);
+            }
+            Directory.CreateDirectory(bakeTempOutputPath);
+
+            //刷新
+            AssetDatabase.Refresh();
+        }
+        #endregion
+    }
 }

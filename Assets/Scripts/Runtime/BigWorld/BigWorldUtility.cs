@@ -9,14 +9,19 @@ namespace BigCat.BigWorld
     {
         #region 坐标转换
         /// <summary>
-        /// 格子大小
+        /// Block的格子的大小
         /// </summary>
-        public const int cellSize = 256;
+        public const int blockSize = 256;
+
+        /// <summary>
+        /// Chunk的格子的大小
+        /// </summary>
+        public const int chunkSize = 1024;
 
         /// <summary>
         /// 每一行最多有多少个
         /// </summary>
-        private const int c_cellRowCount = 1024;
+        private const int c_cellRowCount = 2048;
 
         /// <summary>
         /// 大世界原点的格子偏移
@@ -29,23 +34,75 @@ namespace BigCat.BigWorld
         public const float bigWorldOriginOffset = -1024 * bigWorldOriginCellOffset;
 
         /// <summary>
-        /// 获取基于大世界原点的格子坐标
+        /// 获取基于大世界原点的Block格子坐标
         /// </summary>
         /// <param name="worldPosition">世界坐标</param>
         /// <returns>基于大世界原点的格子坐标</returns>
-        public static int GetCellCoordinateBaseOri(float worldPosition)
+        public static int GetBlockCoordinate(float worldPosition)
         {
-            return (int)((worldPosition - bigWorldOriginOffset) / cellSize);
+            return (int)((worldPosition - bigWorldOriginOffset) / blockSize);
         }
 
         /// <summary>
-        /// 获取基于Zero的格子坐标
+        /// 获取基于大世界原点的Chunk格子坐标
+        /// </summary>
+        /// <param name="worldPosition">世界坐标</param>
+        /// <returns>基于大世界原点的格子坐标</returns>
+        public static int GetChunkCoordinate(float worldPosition)
+        {
+            return (int)((worldPosition - bigWorldOriginOffset) / chunkSize);
+        }
+
+        /// <summary>
+        /// 将Cell所以转换成对应的坐标
+        /// </summary>
+        /// <param name="cellIndex">Cell索引</param>
+        /// <param name="cellX">Cell的X轴坐标</param>
+        /// <param name="cellZ">Cell的Z轴卓表</param>
+        public static void GetCellCoordinates(int cellIndex, out int cellX, out int cellZ)
+        {
+            cellX = cellIndex % c_cellRowCount;
+            cellZ = cellIndex / c_cellRowCount;
+        }
+
+        /// <summary>
+        /// 获取Block基于Zero的格子坐标
         /// </summary>
         /// <param name="worldPosition">世界坐标</param>
         /// <returns>基于大Zero的格子坐标</returns>
-        public static int GetCoordinateBaseZero(float worldPosition)
+        public static int GetBlockCoordinateBaseZero(float worldPosition)
         {
-            return GetCellCoordinateBaseOri(worldPosition) - (1024 / cellSize) * bigWorldOriginCellOffset;
+            return GetBlockCoordinate(worldPosition) - (1024 / blockSize) * bigWorldOriginCellOffset;
+        }
+
+        /// <summary>
+        /// 获取Chunk基于Zero的格子坐标
+        /// </summary>
+        /// <param name="worldPosition">世界坐标</param>
+        /// <returns>基于大Zero的格子坐标</returns>
+        public static int GetChunkCoordinateBaseZero(float worldPosition)
+        {
+            return GetBlockCoordinate(worldPosition) - (1024 / chunkSize) * bigWorldOriginCellOffset;
+        }
+
+        /// <summary>
+        /// 获取基于大世界原点的Block格子坐标(浮点数)
+        /// </summary>
+        /// <param name="worldPosition">世界坐标</param>
+        /// <returns>基于大世界原点的格子坐标</returns>
+        public static float GetBlockCoordinate_Float(float worldPosition)
+        {
+            return (worldPosition - bigWorldOriginOffset) / blockSize;
+        }
+
+        /// <summary>
+        /// 获取基于大世界原点的Chunk格子坐标(浮点数)
+        /// </summary>
+        /// <param name="worldPosition">世界坐标</param>
+        /// <returns>基于大世界原点的格子坐标</returns>
+        public static float GetChunkCoordinate_Float(float worldPosition)
+        {
+            return (worldPosition - bigWorldOriginOffset) / chunkSize;
         }
 
         /// <summary>
@@ -57,18 +114,6 @@ namespace BigCat.BigWorld
         public static int GetCellIndex(int cellX, int cellZ)
         {
             return cellZ * c_cellRowCount + cellX;
-        }
-
-        /// <summary>
-        /// 将Cell所以转换成对应的坐标
-        /// </summary>
-        /// <param name="cellIndex">Cell索引</param>
-        /// <param name="cellX">Cell的X轴坐标</param>
-        /// <param name="cellZ">Cell的Z轴卓表</param>
-        public static void GetCellCoordinate(int cellIndex, out int cellX, out int cellZ)
-        {
-            cellX = cellIndex % c_cellRowCount;
-            cellZ = cellIndex / c_cellRowCount;
         }
         #endregion
 

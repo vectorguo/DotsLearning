@@ -64,9 +64,14 @@ namespace BigCat.BigWorld
         public bool useJobForUpdate { get; set; }
         
         /// <summary>
+        /// 是否初始化完成
+        /// </summary>
+        public bool isInitialized { get; private set; }
+
+        /// <summary>
         /// 初始化完成的回调函数
         /// </summary>
-        public Action initialized { get; set; }
+        public Action onInitialized { get; set; }
 
         /// <summary>
         /// brg
@@ -98,9 +103,10 @@ namespace BigCat.BigWorld
             m_brg = new BatchRendererGroup(OnPerformCulling, IntPtr.Zero);
             m_batchGroups = new List<BigWorldObjectBatchGroup>();
             m_nextBatchGroupID = 0;
-            
+
             //调用初始化完成的回调
-            initialized?.Invoke();
+            isInitialized = true;
+            onInitialized?.Invoke();
         }
 
         private void Update()

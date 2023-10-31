@@ -1,4 +1,7 @@
 using BigCat.BigWorld;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ImgcodecsModule;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -31,9 +34,20 @@ namespace BigCatEditor.BigWorld
         /// <summary>
         /// Terrain的Lightmap参数
         /// </summary>
-        private const int c_terrainLightmapSize = 512;
+        private const int c_terrainHqLightmapSize = 2048;
+        private const int c_terrainMqLightmapSize = 512;
+        private const int c_terrainLqLightmapSize = 512;
         private const int c_terrainLightmapResolution = 15;
+
+        /// <summary>
+        /// Lightmap贴图最终大小
+        /// </summary>
+        private const int c_objLightmapFinalSize = 1024;
+        private const int c_terrainLightmapFinalSize = 512;
         
+        /// <summary>
+        /// 烘焙Lightmap
+        /// </summary>
         public static void BakeLightmap(Dictionary<int, BigWorldBakerHelper.BigWorldBakeDataOfCell> sceneBakeData)
         {
             foreach (var pair in sceneBakeData)
@@ -59,20 +73,20 @@ namespace BigCatEditor.BigWorld
                 case LightmapQuality.High:
                     objLightmapSize = c_hqLightmapSize;
                     objLightmapResolution = c_hqLightmapResolution;
-                    terrainLightmapSize = 1024;
-                    terrainLightmapResolution = 15;
+                    terrainLightmapSize = c_terrainHqLightmapSize;
+                    terrainLightmapResolution = c_terrainLightmapResolution;
                     break;
                 case LightmapQuality.Med:
                     objLightmapSize = c_mqLightmapSize;
                     objLightmapResolution = c_mqLightmapResolution;
-                    terrainLightmapSize = 1024;
-                    terrainLightmapResolution = 15;
+                    terrainLightmapSize = c_terrainMqLightmapSize;
+                    terrainLightmapResolution = c_terrainLightmapResolution;
                     break;
                 default:
                     objLightmapSize = c_lqLightmapSize;
                     objLightmapResolution = c_lqLightmapResolution;
-                    terrainLightmapSize = 1024;
-                    terrainLightmapResolution = 15;
+                    terrainLightmapSize = c_terrainLqLightmapSize;
+                    terrainLightmapResolution = c_terrainLightmapResolution;
                     break;
             }
             
@@ -110,8 +124,8 @@ namespace BigCatEditor.BigWorld
         private static void PostBakeLightmapOfSceneObj(int cellIndex, BigWorldBakerHelper.BigWorldBakeDataOfCell bakeData, LightmapQuality quality)
         {
             //检查Lightmap输出路径
-            BigWorldUtility.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
-            var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/cell_{cellX}_{cellZ}/";
+            BigWorldUtility.GetCellCoordinates(cellIndex, out var cellX, out var cellZ);
+            var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/block/block_{cellX}_{cellZ}/";
             if (!Directory.Exists(folder))
             {
                 Directory.CreateDirectory(folder);
@@ -167,7 +181,7 @@ namespace BigCatEditor.BigWorld
             AssetDatabase.StartAssetEditing();
             foreach (var path in lightmapCopyPaths)
             {
-                SetLightmapSetting(path);
+                SetLightmapSetting(path, c_objLightmapFinalSize);
             }
             AssetDatabase.StopAssetEditing();
         }
@@ -195,30 +209,23 @@ namespace BigCatEditor.BigWorld
         private static void PostBakeLightmapOfTerrain(int cellIndex, BigWorldBakerHelper.BigWorldBakeDataOfCell bakeData, LightmapQuality quality)
         {
             //检查Lightmap输出路径
-            BigWorldUtility.GetCellCoordinate(cellIndex, out var cellX, out var cellZ);
-            var folder = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/cell_{cellX}_{cellZ}/";
+            BigWorldUtility.GetCellCoordinates(cellIndex, out var cellX, out var cellZ);
+            var folder = $"{BigWorldBaker.bakeTempOutputPath}/terrain_lm/temp_{cellX}_{cellZ}/";
             if (!Directory.Exists(folder))
             {
                 Directory.CreateDirectory(folder);
             }
 
             //复制Lightmap
-            var lightmapPrefix = quality == LightmapQuality.High ? "thq_lightmap" : (quality == LightmapQuality.Med ? "tmq_lightmap" : "tlq_lightmap");
+            var lightmapName = quality == LightmapQuality.High ? "thqlm" : (quality == LightmapQuality.Med ? "tmqlm" : "tlqlm");
             var lightmapIndex = bakeData.terrain.lightmapIndex;
             var lightmapTexture = LightmapSettings.lightmaps[lightmapIndex].lightmapColor;
             var lightmapPath = AssetDatabase.GetAssetPath(lightmapTexture);
-            var lightmapCopyPath = $"{folder}/{lightmapPrefix}.exr";
-            AssetDatabase.CopyAsset(lightmapPath, lightmapCopyPath);
-
-            //刷新
-            AssetDatabase.Refresh();
-
-            //修改Lightmap设置
-            AssetDatabase.StartAssetEditing();
-            SetLightmapSetting(lightmapCopyPath);
-            AssetDatabase.StopAssetEditing();
+            File.Copy(lightmapPath, $"{folder}/{lightmapName}.exr", true);
         }
-        
+
+        #region Bake Utility
+
         /// <summary>
         /// 烘焙Lightmap
         /// </summary>
@@ -310,36 +317,266 @@ namespace BigCatEditor.BigWorld
             terrain.shadowCastingMode = ShadowCastingMode.TwoSided;
             GameObjectUtility.SetStaticEditorFlags(terrain.gameObject, StaticEditorFlags.ContributeGI);
         }
-        
+
         /// <summary>
         /// 设置Lightmap贴图的设置
         /// </summary>
         /// <param name="lightmapPath">lightmap路径，Assets开始</param>
-        private static void SetLightmapSetting(string lightmapPath)
+        /// <param name="lightmapSize">lightmap贴图尺寸</param>
+        private static void SetLightmapSetting(string lightmapPath, int lightmapSize)
         {
             var importer = AssetImporter.GetAtPath(lightmapPath) as TextureImporter;
             if (importer != null)
             {
                 importer.isReadable = true;
                 importer.mipmapEnabled = false;
+                importer.maxTextureSize = lightmapSize;
 
                 var androidSetting = importer.GetPlatformTextureSettings("Android");
                 androidSetting.overridden = true;
                 androidSetting.format = TextureImporterFormat.ASTC_6x6;
+                androidSetting.maxTextureSize = lightmapSize;
                 importer.SetPlatformTextureSettings(androidSetting);
 
                 var iosSetting = importer.GetPlatformTextureSettings("iPhone");
                 iosSetting.overridden = true;
                 iosSetting.format = TextureImporterFormat.ASTC_6x6;
+                iosSetting.maxTextureSize = lightmapSize;
                 importer.SetPlatformTextureSettings(iosSetting);
 
                 var pcSetting = importer.GetPlatformTextureSettings("Standalone");
                 pcSetting.overridden = true;
                 pcSetting.format = TextureImporterFormat.DXT5;
+                pcSetting.maxTextureSize = lightmapSize;
                 importer.SetPlatformTextureSettings(pcSetting);
                     
                 importer.SaveAndReimport();
             }
         }
+
+        #endregion
+
+        #region Postprocess Terrain Lightmap
+        public static void PostprocessLightmap()
+        {
+            //后处理Terrain的LightMap
+            PostprocessLqTerrainLightmap();
+            PostprocessMqTerrainLightmap();
+            PostprocessHqTerrainLightmap();
+
+            //拷贝到Resources
+            var terrainLmFolder = $"{BigWorldBaker.bakeTempOutputPath}/terrain_lm/";
+            if (Directory.Exists(terrainLmFolder))
+            {
+                var path = $"Assets/Resources/BigWorld/{BigWorldBaker.worldName}/terrain_lm";
+                var folders = Directory.GetDirectories(terrainLmFolder, "chunk_*", SearchOption.TopDirectoryOnly);
+                foreach (var folder in folders)
+                {
+                    var folderName = Path.GetFileNameWithoutExtension(folder);
+                    BigWorldBakerHelper.CopyFolder(folder, $"{path}/{folderName}");
+                }
+                AssetDatabase.Refresh();
+
+                //修改Lightmap参数
+                AssetDatabase.StartAssetEditing();
+                var hqLightmapPaths = Directory.GetFiles(path, "thqlm_*.exr", SearchOption.AllDirectories);
+                foreach (var lightmapPath in hqLightmapPaths)
+                {
+                    SetLightmapSetting(lightmapPath.Replace(Application.dataPath, "Assets"), c_terrainLightmapFinalSize);
+                }
+
+                var mqLightmapPaths = Directory.GetFiles(path, "tmqlm_*.exr", SearchOption.AllDirectories);
+                foreach (var lightmapPath in mqLightmapPaths)
+                {
+                    SetLightmapSetting(lightmapPath.Replace(Application.dataPath, "Assets"), c_terrainLightmapFinalSize);
+                }
+
+                var lqLightmapPaths = Directory.GetFiles(path, "tlqlm_*.exr", SearchOption.AllDirectories);
+                foreach (var lightmapPath in lqLightmapPaths)
+                {
+                    SetLightmapSetting(lightmapPath.Replace(Application.dataPath, "Assets"), c_terrainLightmapFinalSize);
+                }
+                AssetDatabase.StopAssetEditing();
+            }
+        }
+
+        /// <summary>
+        /// 合并低精度的Terrain的Lightmap
+        /// </summary>
+        private static void PostprocessLqTerrainLightmap()
+        {
+            var terrainLmFolder = $"{BigWorldBaker.bakeTempOutputPath}/terrain_lm/";
+            if (!Directory.Exists(terrainLmFolder))
+            {
+                return;
+            }
+
+            var chunkLightmaps = new Dictionary<int, Texture2D>();
+
+            var folders = Directory.GetDirectories(terrainLmFolder, "temp_*", SearchOption.TopDirectoryOnly);
+            foreach (var folder in folders)
+            {
+                var folderName = Path.GetFileNameWithoutExtension(folder);
+                var folderSs = folderName.Split('_');
+                var blockX = Convert.ToInt32(folderSs[1]);
+                var blockZ = Convert.ToInt32(folderSs[2]);
+                var chunkX = blockX / 4;
+                var chunkZ = blockZ / 4;
+                var chunkIndex = BigWorldUtility.GetCellIndex(chunkX, chunkZ);
+                if (!chunkLightmaps.TryGetValue(chunkIndex, out var chunkLightmap))
+                {
+                    var textureSize = c_terrainLqLightmapSize * 4;
+                    chunkLightmap = new Texture2D(textureSize, textureSize, TextureFormat.RGBAFloat, -1, true);
+                    chunkLightmaps.Add(chunkIndex, chunkLightmap);
+                }
+
+                using (var blockLightmap = Imgcodecs.imread($"{folder}/tlqlm.exr", Imgcodecs.IMREAD_UNCHANGED))
+                {
+                    var offsetX = blockX % 4 * c_terrainLqLightmapSize;
+                    var offsetZ = blockZ % 4 * c_terrainLqLightmapSize;
+
+                    var width = blockLightmap.width();
+                    var height = blockLightmap.height();
+                    var lightmapColor = new float[blockLightmap.channels()];
+                    for (var x = 0; x < width; ++x)
+                    {
+                        for (var y = 0; y < height; ++y)
+                        {
+                            blockLightmap.get(height - 1 - y, x, lightmapColor);
+                            chunkLightmap.SetPixel(offsetX + x, offsetZ + y, new Color(lightmapColor[2], lightmapColor[1], lightmapColor[0]));
+                        }
+                    }
+                }
+            }
+
+            foreach (var pair in chunkLightmaps)
+            {
+                BigWorldUtility.GetCellCoordinates(pair.Key, out var chunkX, out var chunkZ);
+                var chunkFolder = $"{terrainLmFolder}/chunk_{chunkX}_{chunkZ}";
+                if (!Directory.Exists(chunkFolder))
+                {
+                    Directory.CreateDirectory(chunkFolder);
+                }
+
+                using (var mat = ConvertTextureToMat(pair.Value))
+                {
+                    Imgcodecs.imwrite($"{chunkFolder}/tlqlm.exr", mat);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 移动中精度的Terrain的Lightmap
+        /// </summary>
+        private static void PostprocessMqTerrainLightmap()
+        {
+            var terrainLmFolder = $"{BigWorldBaker.bakeTempOutputPath}/terrain_lm/";
+            if (!Directory.Exists(terrainLmFolder))
+            {
+                return;
+            }
+
+            var folders = Directory.GetDirectories(terrainLmFolder, "temp_*", SearchOption.TopDirectoryOnly);
+            foreach (var folder in folders)
+            {
+                var folderName = Path.GetFileNameWithoutExtension(folder);
+                var folderSs = folderName.Split('_');
+                var blockX = Convert.ToInt32(folderSs[1]);
+                var blockZ = Convert.ToInt32(folderSs[2]);
+                var chunkX = blockX / 4;
+                var chunkZ = blockZ / 4;
+                var chunkFolder = $"{terrainLmFolder}/chunk_{chunkX}_{chunkZ}";
+                if (!Directory.Exists(chunkFolder))
+                {
+                    Directory.CreateDirectory(chunkFolder);
+                }
+                File.Copy($"{folder}/tmqlm.exr", $"{chunkFolder}/tmqlm_{blockX}_{blockZ}.exr", true);
+            }
+        }
+
+        /// <summary>
+        /// 移动中精度的Terrain的Lightmap
+        /// </summary>
+        private static void PostprocessHqTerrainLightmap()
+        {
+            var terrainLmFolder = $"{BigWorldBaker.bakeTempOutputPath}/terrain_lm/";
+            if (!Directory.Exists(terrainLmFolder))
+            {
+                return;
+            }
+
+            var folders = Directory.GetDirectories(terrainLmFolder, "temp_*", SearchOption.TopDirectoryOnly);
+            foreach (var folder in folders)
+            {
+                var folderName = Path.GetFileNameWithoutExtension(folder);
+                var folderSs = folderName.Split('_');
+                var blockX = Convert.ToInt32(folderSs[1]);
+                var blockZ = Convert.ToInt32(folderSs[2]);
+                var chunkX = blockX / 4;
+                var chunkZ = blockZ / 4;
+                var chunkFolder = $"{terrainLmFolder}/chunk_{chunkX}_{chunkZ}";
+                if (!Directory.Exists(chunkFolder))
+                {
+                    Directory.CreateDirectory(chunkFolder);
+                }
+
+                var stepLightmapSize = c_terrainHqLightmapSize / 4;
+                using (var blockLightmap = Imgcodecs.imread($"{folder}/thqlm.exr", Imgcodecs.IMREAD_UNCHANGED))
+                {
+                    var lightmapColor = new float[blockLightmap.channels()];
+                    var stepStartX = blockX * 4;
+                    var stepStartZ = blockZ * 4;
+                    for (var m = 0; m < 4; ++m)
+                    {
+                        for (var n = 0; n < 4; ++n)
+                        {
+                            var texture = new Texture2D(stepLightmapSize, stepLightmapSize, TextureFormat.RGBAFloat, -1, true);
+
+                            for (int x = 0; x < stepLightmapSize; ++x)
+                            {
+                                for (int y = 0; y < stepLightmapSize; ++y)
+                                {
+                                    blockLightmap.get(blockLightmap.height() - 1 - (y + n * stepLightmapSize), (x + m * stepLightmapSize), lightmapColor);
+                                    texture.SetPixel(x, y, new Color(lightmapColor[2], lightmapColor[1], lightmapColor[0]));
+                                }
+                            }
+
+                            using (var mat = ConvertTextureToMat(texture))
+                            {
+                                var stepX = stepStartX + m;
+                                var stepZ = stepStartZ + n;
+                                Imgcodecs.imwrite($"{chunkFolder}/thqlm_{stepX}_{stepZ}.exr", mat);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 将Texture2D转成Mat
+        /// </summary>
+        /// <returns></returns>
+        private static Mat ConvertTextureToMat(Texture2D tex)
+        {
+            var mat = new Mat(tex.width, tex.height, CvType.CV_32FC3);
+            int width = tex.width;
+            int height = tex.height;
+            float[] bgr = new float[3];
+            for (int y = 0; y < height; ++y)
+            {
+                for (int x = 0; x < width; ++x)
+                {
+                    Color c = tex.GetPixel(x, y);
+                    bgr[0] = c.b;
+                    bgr[1] = c.g;
+                    bgr[2] = c.r;
+                    mat.put(height - 1 - y, x, bgr);
+                }
+            }
+
+            return mat;
+        }
+        #endregion
     }   
 }

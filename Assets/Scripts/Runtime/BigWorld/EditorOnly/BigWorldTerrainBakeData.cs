@@ -10,9 +10,9 @@ namespace BigCat.BigWorld
         public int instanceID;
 
         #region Cell
-        public int cellX;
-        public int cellZ;
-        public int cellIndex;
+        public int blockX;
+        public int blockZ;
+        public int blockIndex;
         #endregion
         
         #region Terrain
