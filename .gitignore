@@ -4,3 +4,5 @@ obj
 Temp
 .vs
 .vsconfig
+Assembly-CSharp.csproj
+Assembly-CSharp-Editor.csproj
