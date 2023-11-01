@@ -189,7 +189,14 @@ namespace BigCat.BigWorld
             }
         }
         #endregion
-        
+
+        /// <summary>
+        /// 常量
+        /// </summary>
+        public const uint sizeOfPackedMatrix = sizeof(float) * 4 * 3;
+        public const uint sizeOfFloat = sizeof(float);
+        public const uint sizeOfFloat4 = sizeof(float) * 4;
+
         /// <summary>
         /// maxGraphicsBufferSize
         /// </summary>

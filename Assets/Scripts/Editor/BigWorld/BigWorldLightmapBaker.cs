@@ -391,7 +391,7 @@ namespace BigCatEditor.BigWorld
                     SetLightmapSetting(lightmapPath.Replace(Application.dataPath, "Assets"), c_terrainLightmapFinalSize);
                 }
 
-                var lqLightmapPaths = Directory.GetFiles(path, "tlqlm_*.exr", SearchOption.AllDirectories);
+                var lqLightmapPaths = Directory.GetFiles(path, "tlqlm.exr", SearchOption.AllDirectories);
                 foreach (var lightmapPath in lqLightmapPaths)
                 {
                     SetLightmapSetting(lightmapPath.Replace(Application.dataPath, "Assets"), c_terrainLightmapFinalSize);

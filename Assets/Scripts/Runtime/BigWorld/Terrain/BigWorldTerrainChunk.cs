@@ -61,10 +61,13 @@ namespace BigCat.BigWorld
         /// <param name="center">中心点位置</param>
         public void Refresh(Vector3 center)
         {
+            //刷新可见节点
             var visibleNodes = new List<BigWorldTerrainQuadTreeNode>();
             var centerBoundsSize = m_quadTreeRoot.size / 2;
             var centerBounds = new Bounds(center, new Vector3(centerBoundsSize, centerBoundsSize, centerBoundsSize));
             m_quadTreeRoot.Refresh(centerBounds, visibleNodes);
+
+            //统计可见节点使用的Lightmap
 
             //刷新BatchGroup数据
             //需要检测可见节点是否变化 TODO
@@ -73,32 +76,6 @@ namespace BigCat.BigWorld
             {
                 batchGroup.Refresh(visibleNodes);
             }
-            
-            // Draw(visibleNodes);
         }
-        
-        #region Draw
-        private List<GameObject> m_debugCubes = new List<GameObject>();
-        
-        /// <summary>
-        /// 绘制调试信息
-        /// </summary>
-        private void Draw(List<BigWorldTerrainQuadTreeNode> visibleNodes)
-        {
-            foreach (var cube in m_debugCubes)
-            {
-                Object.Destroy(cube);
-            }
-            m_debugCubes.Clear();
-
-            foreach (var node in visibleNodes)
-            {
-                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                cube.transform.position = new Vector3(node.posX + node.size / 2, 0, node.posZ + node.size / 2);
-                cube.transform.localScale = new Vector3(node.size - 0.5f, 0.1f, node.size - 0.5f);
-                m_debugCubes.Add(cube);
-            }
-        }
-        #endregion
     }
 }

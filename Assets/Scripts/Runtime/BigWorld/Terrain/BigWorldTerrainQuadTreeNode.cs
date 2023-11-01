@@ -41,6 +41,12 @@ namespace BigCat.BigWorld
         private bool isLeaf => m_depth == BigWorldTerrainChunk.maxQuadTreeDepth;
 
         /// <summary>
+        /// Lightmap的LOD
+        /// </summary>
+        private int m_lod;
+        public int lod => m_lod;
+
+        /// <summary>
         /// 包围盒
         /// </summary>
         private Bounds m_bounds;
@@ -97,6 +103,9 @@ namespace BigCat.BigWorld
                     //center在该节点内，并且该节点是叶子结点
                     m_visible = true;
                     visibleNodes.Add(this);
+
+                    //刷新LOD
+                    RefreshLOD(centerBounds.center);
                 }
                 else
                 {
@@ -115,16 +124,67 @@ namespace BigCat.BigWorld
             }
             else
             {
-                //center不在该Node内，则将该节点设置成可见，所有子节点设置成不可见
+                //center不在该Node内，则将该节点设置成可见
                 m_visible = true;
                 visibleNodes.Add(this);
-                
+
+                //刷新LOD
+                RefreshLOD(centerBounds.center);
+
+                //所有子节点设置成不可见
                 if (m_children != null)
                 {
                     foreach (var child in m_children)
                     {
                         child.m_visible = false;
                     }
+                }
+            }
+        }
+
+        private void RefreshLOD(Vector3 center)
+        {
+            switch (m_depth)
+            {
+                case 0:
+                case 1:
+                {
+                    m_lod = 2;
+                    break;
+                }
+                case 2:
+                case 3:
+                {
+                    var deltaX = Mathf.Abs(center.x - (posX + size / 2)) / size;
+                    var deltaZ = Mathf.Abs(center.z - (posZ + size / 2)) / size;
+                    if (deltaX < 0.5f && deltaZ < 0.5f)
+                    {
+                        m_lod = 1;
+                    }
+                    else
+                    {
+                        m_lod = 2;
+                    }
+                    break;
+                }
+                case 4:
+                {
+                    var deltaX = Mathf.Abs(center.x - (posX + size / 2)) / size;
+                    var deltaZ = Mathf.Abs(center.z - (posZ + size / 2)) / size;
+                    if (deltaX < 0.5f && deltaZ < 0.5f)
+                    {
+                        m_lod = 0;
+                    }
+                    else
+                    {
+                        m_lod = 1;
+                    }
+                    break;
+                }
+                default:
+                {
+                    m_lod = 2;
+                    break;
                 }
             }
         }
