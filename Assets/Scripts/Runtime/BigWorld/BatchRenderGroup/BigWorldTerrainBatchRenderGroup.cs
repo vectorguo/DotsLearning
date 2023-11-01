@@ -4,7 +4,6 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -30,16 +29,6 @@ namespace BigCat.BigWorld
         /// </summary>
         private static int s_maxInstanceCountPerBatch;
         public static int maxInstanceCountPerBatch => s_maxInstanceCountPerBatch;
-
-        /// <summary>
-        /// Terrain使用的Shader
-        /// </summary>
-        public Shader terrainShader { get; set; }
-
-        /// <summary>
-        /// 是否初始化完成
-        /// </summary>
-        public bool isInitialized { get; private set; }
 
         /// <summary>
         /// 初始化完成的回调函数
@@ -92,13 +81,7 @@ namespace BigCat.BigWorld
             m_meshID = m_brg.RegisterMesh(m_mesh);
 
             //调用初始化完成的回调
-            isInitialized = true;
             onInitialized?.Invoke();
-        }
-
-        private void Update()
-        {
-
         }
 
         private void OnDestroy()
@@ -122,15 +105,22 @@ namespace BigCat.BigWorld
         /// <summary>
         /// 添加BatchGroup
         /// </summary>
-        /// <param name="batchGroupConfig">配置信息</param>
         /// <returns>BatchGroup的ID</returns>
-        public int AddBatchGroup(BigWorldTerrainBatchGroupConfig batchGroupConfig)
+        public int AddBatchGroup()
         {
             var id = ++m_nextBatchGroupID;
-            m_batchGroups.Add(new BigWorldTerrainBatchGroup(id, terrainShader, batchGroupConfig, m_brg));
+            m_batchGroups.Add(new BigWorldTerrainBatchGroup(id, m_brg));
             return id;
         }
 
+        /// <summary>
+        /// 获取BatchGroup
+        /// </summary>
+        public BigWorldTerrainBatchGroup GetBatchGroup(int batchID)
+        {
+            return m_batchGroups.Find((g) => g.id == batchID);
+        }
+        
         /// <summary>
         /// 删除BatchGroup
         /// </summary>
@@ -154,17 +144,8 @@ namespace BigCat.BigWorld
         private unsafe JobHandle OnPerformCulling(BatchRendererGroup rendererGroup, BatchCullingContext cullingContext, BatchCullingOutput cullingOutput, IntPtr userContext)
         {
             //统计并更新Batch数据
-            var batchCount = 0;
-            var instanceCount = 0;
-            foreach (var batchGroup in m_batchGroups)
-            {
-                foreach (var batch in batchGroup.batches)
-                {
-                    batch.batchIndex = batchCount++;
-                    batch.visibleOffset = instanceCount;
-                    instanceCount += batch.instanceCount;
-                }
-            }
+            var batchCount = m_batchGroups.Count;
+            var instanceCount = m_batchGroups.Count * BigWorldTerrainBatchGroup.instanceCount;
             
             //DrawCommand
             var drawCommands = (BatchCullingOutputDrawCommands*)cullingOutput.drawCommands.GetUnsafePtr();
@@ -188,30 +169,25 @@ namespace BigCat.BigWorld
             };
             
             //裁剪，暂时全部可见
-            foreach (var batchGroup in m_batchGroups)
+            for (var batchIndex = 0; batchIndex < m_batchGroups.Count; ++batchIndex)
             {
-                foreach (var batch in batchGroup.batches)
+                var batchGroup = m_batchGroups[batchIndex];
+                var visibleOffset = batchIndex * BigWorldTerrainBatchGroup.instanceCount;
+                for (var j = 0; j < batchGroup.visibleInstanceCount; ++j)
                 {
-                    //可见和LOD裁剪
-                    int visibleCount = 0;
-                    int visibleOffset = batch.visibleOffset;
-                    for (var j = 0; j < batch.instanceCount; ++j)
-                    {
-                        drawCommands->visibleInstances[visibleOffset + visibleCount] = j;
-                        ++visibleCount;
-                    }
-
-                    var drawCommand = drawCommands->drawCommands + batch.batchIndex;
-                    drawCommand->visibleCount = (uint)visibleCount;
-                    drawCommand->visibleOffset = (uint)visibleOffset;
-                    drawCommand->batchID = batch.batchID;
-                    drawCommand->materialID = batchGroup.materialID;
-                    drawCommand->meshID = m_meshID;
-                    drawCommand->submeshIndex = 0;
-                    drawCommand->splitVisibilityMask = 0xff;
-                    drawCommand->flags = 0;
-                    drawCommand->sortingPosition = 0;
+                    drawCommands->visibleInstances[visibleOffset + j] = j;
                 }
+
+                var drawCommand = drawCommands->drawCommands + batchIndex;
+                drawCommand->visibleCount = (uint)batchGroup.visibleInstanceCount;
+                drawCommand->visibleOffset = (uint)visibleOffset;
+                drawCommand->batchID = batchGroup.batchID;
+                drawCommand->materialID = batchGroup.materialID;
+                drawCommand->meshID = m_meshID;
+                drawCommand->submeshIndex = 0;
+                drawCommand->splitVisibilityMask = 0xff;
+                drawCommand->flags = 0;
+                drawCommand->sortingPosition = 0;
             }
             return new JobHandle();
         }
@@ -219,15 +195,6 @@ namespace BigCat.BigWorld
         #endregion
         
         #region Material和Mesh
-        /// <summary>
-        /// 创建材质
-        /// </summary>
-        /// <returns></returns>
-        private Material CreateMaterial()
-        {
-            return new Material(terrainShader);
-        }
-        
         /// <summary>
         /// 创建Terrain所需的Mesh
         /// </summary>
@@ -238,10 +205,10 @@ namespace BigCat.BigWorld
             var uv2 = new Vector2[4];
             var triangles = new int[6];
 
-            vertices[0] = new Vector3(0, 0, 256);
-            vertices[1] = new Vector3(256, 0, 256);
+            vertices[0] = new Vector3(0, 0, 1);
+            vertices[1] = new Vector3(1, 0, 1);
             vertices[2] = new Vector3(0, 0, 0);
-            vertices[3] = new Vector3(256, 0, 0);
+            vertices[3] = new Vector3(1, 0, 0);
             uv[0] = new Vector2(0, 1);
             uv[1] = new Vector2(1, 1);
             uv[2] = new Vector2(0, 0);
@@ -271,81 +238,20 @@ namespace BigCat.BigWorld
 
     public class BigWorldTerrainBatchGroup
     {
-        public class Batch
-        {
-            /// <summary>
-            /// 该Batch在BRG中的ID
-            /// </summary>
-            private readonly BatchID m_batchID;
-            public BatchID batchID => m_batchID;
-
-            /// <summary>
-            /// 存储绘制Instance的数据的GBuffer
-            /// </summary>
-            private readonly GraphicsBuffer m_instanceData;
-            public GraphicsBuffer instanceData => m_instanceData;
-
-            /// <summary>
-            /// 该Batch绘制的所有的Instance的数量
-            /// </summary>
-            private readonly int m_instanceCount;
-            public int instanceCount => m_instanceCount;
-            
-            /// <summary>
-            /// Instance在所属的BatchGroup里的偏移
-            /// </summary>
-            private readonly int m_instanceOffset;
-            public int instanceOffset => m_instanceOffset;
-            
-            /// <summary>
-            /// 该Batch在整个绘制阶段所有Batch列表里的偏移
-            /// </summary>
-            public int batchIndex { get; set; }
-            
-            /// <summary>
-            /// Instance在DrawCommands可见列表里的偏移
-            /// </summary>
-            public int visibleOffset { get; set; }
-
-            public Batch(int instanceOffset, int instanceCount, BigWorldTerrainBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
-            {
-                m_instanceCount = instanceCount;
-                m_instanceOffset = instanceOffset;
-                
-                //填充数据
-                var localToWorld = new BigWorldUtility.PackedMatrix[instanceCount];
-                var lightmapIndices = new float[instanceCount];
-                for (var i = 0; i < instanceCount; ++i)
-                {
-                    var index = instanceOffset + i;
-                    localToWorld[i] = new BigWorldUtility.PackedMatrix(Matrix4x4.Translate(batchGroupConfig.positions[index]));
-                    lightmapIndices[i] = index;
-                }
-                
-                //创建GBuffer
-                uint byteAddressLocalToWorld = BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
-                uint byteAddressLightmapIndex = byteAddressLocalToWorld + (uint)(BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix * instanceCount);
-                var buffSize = instanceCount * BigWorldObjectBatchRenderGroup.sizeOfPerInstance + BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
-                m_instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
-                m_instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
-                m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix), instanceCount);
-                m_instanceData.SetData(lightmapIndices, 0, (int)(byteAddressLightmapIndex / BigWorldObjectBatchRenderGroup.sizeOfFloat), instanceCount);
-
-                //metadata
-                var metadata = new NativeArray<MetadataValue>(2, Allocator.Temp);
-                metadata[0] = new MetadataValue { NameID = shaderPropertyO2W, Value = 0x80000000 | byteAddressLocalToWorld };
-                metadata[1] = new MetadataValue { NameID = shaderPropertyLightmapIndex, Value = 0x80000000 | byteAddressLightmapIndex };
-
-                //add batch
-                m_batchID = brg.AddBatch(metadata, m_instanceData.bufferHandle);
-            }
-
-            public void Destroy(BatchRendererGroup brg)
-            {
-                brg.RemoveBatch(m_batchID);
-                m_instanceData.Dispose();
-            }
-        }
+        /// <summary>
+        /// Lightmap最大数量
+        /// </summary>
+        private const int c_lightmapCount = 9;
+        
+        /// <summary>
+        /// Lightmap贴图尺寸
+        /// </summary>
+        private const int c_lightmapTextureSize = 512;
+        
+        /// <summary>
+        /// 最大实例数量
+        /// </summary>
+        public const int instanceCount = 40;
         
         /// <summary>
         /// ShaderProperty
@@ -361,81 +267,108 @@ namespace BigCat.BigWorld
         public int id => m_id;
 
         /// <summary>
-        /// instance的位置数组
+        /// 可见的Instance数量
         /// </summary>
-        public NativeArray<float3> positions;
-
+        private int m_visibleInstanceCount;
+        public int visibleInstanceCount => m_visibleInstanceCount;
+        
         /// <summary>
-        /// 渲染Terrain需要的材质
+        /// 该Batch在BRG中的ID
         /// </summary>
-        private Material m_material;
+        private readonly BatchID m_batchID;
+        public BatchID batchID => m_batchID;
 
         /// <summary>
         /// 材质在BRG中的注册ID
         /// </summary>
-        private BatchMaterialID m_materialID;
+        private readonly BatchMaterialID m_materialID;
         public BatchMaterialID materialID => m_materialID;
-
+        
         /// <summary>
-        /// Lightmap
+        /// 存储绘制Instance的数据的GBuffer
         /// </summary>
-        private Texture2DArray m_lightmaps;        
-
+        private readonly GraphicsBuffer m_instanceData;
+        public GraphicsBuffer instanceData => m_instanceData;
+        
         /// <summary>
-        /// Batch列表
+        /// 用于存储每个Instance的变化的数据
         /// </summary>
-        private readonly Batch[] m_batches;
-        public Batch[] batches => m_batches;
+        public NativeArray<BigWorldUtility.PackedMatrix> m_systemBufferL2w;
+        
+        /// <summary>
+        /// 渲染Terrain需要的材质
+        /// </summary>
+        private readonly Material m_material;
+        
+        /// <summary>
+        /// 渲染Terrain需要的Lightmap
+        /// </summary>
+        private readonly Texture2DArray m_lightmaps;
 
-        public BigWorldTerrainBatchGroup(int id, Shader shader, BigWorldTerrainBatchGroupConfig batchGroupConfig, BatchRendererGroup brg)
+        public BigWorldTerrainBatchGroup(int id, BatchRendererGroup brg)
         {
             m_id = id;
-
+            
             //Lightmap
-            m_lightmaps = new Texture2DArray(2048, 2048, batchGroupConfig.count, BigWorldUtility.lightmapTextureFormat, false);
-
-            //创建Job所需的NativeArray
-            positions = new NativeArray<float3>(batchGroupConfig.count, Allocator.Persistent);
-            for (var i = 0; i < batchGroupConfig.count; ++i)
-            {
-                var position = batchGroupConfig.positions[i];
-                positions[i] = position;
-
-                var cellX = BigWorldUtility.GetBlockCoordinate(position.x);
-                var cellZ = BigWorldUtility.GetBlockCoordinate(position.z);
-                var lightmap = Resources.Load<Texture2D>($"BigWorld/MondCity/cell_{cellX}_{cellZ}/tmq_lightmap");
-                m_lightmaps.SetPixelData(lightmap.GetPixelData<byte>(0), 0, i);
-            }
-            m_lightmaps.Apply();
+            m_lightmaps = new Texture2DArray(c_lightmapTextureSize, c_lightmapTextureSize, c_lightmapCount, BigWorldUtility.lightmapTextureFormat, false);
 
             //创建材质
+            var shader = Resources.Load<Shader>("Shader/brg_terrain");
             m_material = new Material(shader);
             m_material.SetTexture(shaderPropertyLightmaps, m_lightmaps);
             m_material.EnableKeyword("DOTS_INSTANCING_ON");
             m_materialID = brg.RegisterMaterial(m_material);
 
             //创建Batch
-            var batchCount = (batchGroupConfig.count + BigWorldTerrainBatchRenderGroup.maxInstanceCountPerBatch - 1) / BigWorldTerrainBatchRenderGroup.maxInstanceCountPerBatch;
-            m_batches = new Batch[batchCount];
-            for (var i = 0; i < batchCount; ++i)
-            {
-                var instanceOffset = i * BigWorldTerrainBatchRenderGroup.maxInstanceCountPerBatch;
-                var instanceCount = Math.Min(BigWorldTerrainBatchRenderGroup.maxInstanceCountPerBatch, batchGroupConfig.count - instanceOffset);
-                m_batches[i] = new Batch(instanceOffset, instanceCount, batchGroupConfig, brg);
-            }
+            m_systemBufferL2w = new NativeArray<BigWorldUtility.PackedMatrix>(instanceCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+                
+            //创建GBuffer
+            uint byteAddressLocalToWorld = BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
+            uint byteAddressLightmapIndex = byteAddressLocalToWorld + (uint)(BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix * instanceCount);
+            var buffSize = instanceCount * BigWorldObjectBatchRenderGroup.sizeOfPerInstance + BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
+            m_instanceData = new GraphicsBuffer(GraphicsBuffer.Target.Raw, (int)buffSize / sizeof(int), sizeof(int));
+            m_instanceData.SetData(new[] { Matrix4x4.zero }, 0, 0, 1);
+            // m_instanceData.SetData(localToWorld, 0, (int)(byteAddressLocalToWorld / BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix), instanceCount);
+            // m_instanceData.SetData(lightmapIndices, 0, (int)(byteAddressLightmapIndex / BigWorldObjectBatchRenderGroup.sizeOfFloat), instanceCount);
+
+            //metadata
+            var metadata = new NativeArray<MetadataValue>(1, Allocator.Temp);
+            metadata[0] = new MetadataValue { NameID = shaderPropertyO2W, Value = 0x80000000 | byteAddressLocalToWorld };
+            // metadata[1] = new MetadataValue { NameID = shaderPropertyLightmapIndex, Value = 0x80000000 | byteAddressLightmapIndex };
+
+            //add batch
+            m_batchID = brg.AddBatch(metadata, m_instanceData.bufferHandle);
         }
 
         public void Destroy(BatchRendererGroup brg)
         {
             brg.UnregisterMaterial(m_materialID);
+            brg.RemoveBatch(m_batchID);
+            
+            m_instanceData.Dispose();
+            m_systemBufferL2w.Dispose();
+            
             UnityEngine.Object.Destroy(m_material);
+            UnityEngine.Object.Destroy(m_lightmaps);
+        }
 
-            foreach (var batch in m_batches)
+        /// <summary>
+        /// 刷新BatchGroup数据
+        /// </summary>
+        /// <param name="renderNodes">需要渲染的Terrain节点</param>
+        public void Refresh(List<BigWorldTerrainQuadTreeNode> renderNodes)
+        {
+            m_visibleInstanceCount = renderNodes.Count;
+            for (var i = 0; i < m_visibleInstanceCount; ++i)
             {
-                batch.Destroy(brg);
+                var renderNode = renderNodes[i];
+                var position = new Vector3(renderNode.posX, 0, renderNode.posZ);
+                var scale = new Vector3(renderNode.size, renderNode.size, renderNode.size);
+                m_systemBufferL2w[i] = new BigWorldUtility.PackedMatrix(Matrix4x4.TRS(position, Quaternion.identity, scale));
             }
             
-            positions.Dispose();
+            var byteAddressLocalToWorld = BigWorldObjectBatchRenderGroup.sizeOfGBufferHead;
+            m_instanceData.SetData(m_systemBufferL2w, 0, (int)(byteAddressLocalToWorld / BigWorldObjectBatchRenderGroup.sizeOfPackedMatrix), m_visibleInstanceCount);
         }
     }
 }

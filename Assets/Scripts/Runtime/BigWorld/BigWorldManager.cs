@@ -26,11 +26,6 @@ namespace BigCat.BigWorld
         public bool useJobForUpdate = true;
 
         /// <summary>
-        /// Terrain使用的shader
-        /// </summary>
-        public Shader terrainShader;
-
-        /// <summary>
         /// 玩家
         /// </summary>
         public GameObject player;
@@ -83,13 +78,20 @@ namespace BigCat.BigWorld
 
             //创建TerrainManager
             m_terrainMgr = gameObject.AddComponent<BigWorldTerrainManager>();
+            m_terrainMgr.center = player.transform.position;
             m_terrainMgr.onInitialized = Initialize;
         }
         
         void Update()
         {
-            m_objectBrg.cullCenter = player.transform.position;
+            var playerPosition = player.transform.position;
+            
+            //更新Object BRG
+            m_objectBrg.cullCenter = playerPosition;
 
+            //更新Terrain
+            m_terrainMgr.center = playerPosition;
+            
             //更新Chunk
             foreach (var chunk in m_chunks)
             {

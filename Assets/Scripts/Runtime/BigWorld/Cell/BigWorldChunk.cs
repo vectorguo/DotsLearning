@@ -16,6 +16,11 @@ namespace BigCat.BigWorld
         private readonly List<BigWorldBlock> m_blocks = new List<BigWorldBlock>();
 
         /// <summary>
+        /// Chunk使用的Lightmap
+        /// </summary>
+        private Texture2D m_lightmap;
+
+        /// <summary>
         /// 构造函数
         /// </summary>
         public BigWorldChunk(int chunkIndex) : base(chunkIndex)
@@ -47,6 +52,9 @@ namespace BigCat.BigWorld
                 block.Destroy();
             }
             m_blocks.Clear();
+            
+            //销毁terrain
+            BigWorldTerrainManager.instance.RemoveChunk(m_x, m_z);
 
             //释放config资源
             Resources.UnloadAsset(m_config);
@@ -63,6 +71,9 @@ namespace BigCat.BigWorld
             {
                 m_blocks.Add(new BigWorldBlock(blockIndex));
             }
+            
+            //terrain
+            BigWorldTerrainManager.instance.AddChunk(m_x, m_z);
         }
     }
 }

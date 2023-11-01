@@ -9,6 +9,11 @@ namespace BigCat.BigWorld
     {
         #region 坐标转换
         /// <summary>
+        /// Step的各自的大小
+        /// </summary>
+        public const int stepSize = 64;
+        
+        /// <summary>
         /// Block的格子的大小
         /// </summary>
         public const int blockSize = 256;
@@ -34,6 +39,26 @@ namespace BigCat.BigWorld
         public const float bigWorldOriginOffset = -1024 * bigWorldOriginCellOffset;
 
         /// <summary>
+        /// 获取基于大世界原点的Step格子坐标
+        /// </summary>
+        /// <param name="worldPosition">世界坐标</param>
+        /// <returns>基于大世界原点的格子坐标</returns>
+        public static int GetStepCoordinate(float worldPosition)
+        {
+            return (int)((worldPosition - bigWorldOriginOffset) / stepSize);
+        }
+
+        /// <summary>
+        /// 计算Step的世界坐标
+        /// </summary>
+        /// <param name="coord">Step的坐标</param>
+        /// <returns>Step的世界位置</returns>
+        public static float GetStepWorldPosition(int coord)
+        {
+            return coord * stepSize + bigWorldOriginOffset;
+        }
+        
+        /// <summary>
         /// 获取基于大世界原点的Block格子坐标
         /// </summary>
         /// <param name="worldPosition">世界坐标</param>
@@ -41,6 +66,16 @@ namespace BigCat.BigWorld
         public static int GetBlockCoordinate(float worldPosition)
         {
             return (int)((worldPosition - bigWorldOriginOffset) / blockSize);
+        }
+        
+        /// <summary>
+        /// 计算Block的世界坐标
+        /// </summary>
+        /// <param name="coord">Block的坐标</param>
+        /// <returns>Block的世界位置</returns>
+        public static float GetBlockWorldPosition(int coord)
+        {
+            return coord * blockSize + bigWorldOriginOffset;
         }
 
         /// <summary>
@@ -53,6 +88,16 @@ namespace BigCat.BigWorld
             return (int)((worldPosition - bigWorldOriginOffset) / chunkSize);
         }
 
+        /// <summary>
+        /// 计算Chunk的世界坐标
+        /// </summary>
+        /// <param name="coord">Chunk的坐标</param>
+        /// <returns>Chunk的世界位置</returns>
+        public static float GetChunkWorldPosition(int coord)
+        {
+            return coord * chunkSize + bigWorldOriginOffset;
+        }
+        
         /// <summary>
         /// 将Cell所以转换成对应的坐标
         /// </summary>
@@ -85,6 +130,16 @@ namespace BigCat.BigWorld
             return GetBlockCoordinate(worldPosition) - (1024 / chunkSize) * bigWorldOriginCellOffset;
         }
 
+        /// <summary>
+        /// 获取基于大世界原点的Step格子坐标(浮点数)
+        /// </summary>
+        /// <param name="worldPosition">世界坐标</param>
+        /// <returns>基于大世界原点的格子坐标</returns>
+        public static float GetStepCoordinate_Float(float worldPosition)
+        {
+            return (worldPosition - bigWorldOriginOffset) / stepSize;
+        }
+        
         /// <summary>
         /// 获取基于大世界原点的Block格子坐标(浮点数)
         /// </summary>
